@@ -10,14 +10,15 @@ final class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Minimal Foundation Only (0 Bank Accounts, 0 Fiscal Periods, 0 Transactions)
+        // Minimal Foundation Only (Master data, Chart of Accounts, Bank Accounts, System Users)
         $this->call([
             UserAndRoleSeeder::class,
             ChartOfAccountsSeeder::class,
             TaxConfigurationSeeder::class,
             BankAccountSeeder::class,
-            MalasakitGuaranteeLetterSeeder::class,
-            PublicHospitalFinancialDashboardSeeder::class,
+            // To load mock demo encounters, invoices, and budgets, run manually:
+            // php artisan db:seed --class=MalasakitGuaranteeLetterSeeder
+            // php artisan db:seed --class=PublicHospitalFinancialDashboardSeeder
         ]);
     }
 }

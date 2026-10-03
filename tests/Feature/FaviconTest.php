@@ -89,10 +89,9 @@ class FaviconTest extends TestCase
         $this->assertStringContainsString('favicon.ico', $rendered);
         $this->assertStringContainsString('rel="apple-touch-icon" sizes="180x180"', $rendered);
         $this->assertStringContainsString('apple-touch-icon.png', $rendered);
-        $this->assertStringContainsString('rel="manifest"', $rendered);
-        $this->assertStringContainsString('site.webmanifest', $rendered);
         $this->assertStringContainsString('name="theme-color" content="#059669"', $rendered);
         $this->assertStringContainsString('name="msapplication-TileColor" content="#059669"', $rendered);
+        $this->assertStringNotContainsString('rel="manifest"', $rendered);
     }
 
     /**
@@ -104,6 +103,5 @@ class FaviconTest extends TestCase
         $response->assertOk();
         $response->assertSee('favicon.svg', false);
         $response->assertSee('favicon.ico', false);
-        $response->assertSee('site.webmanifest', false);
     }
 }

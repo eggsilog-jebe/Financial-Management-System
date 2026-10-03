@@ -11,3 +11,19 @@
 <meta name="application-name" content="Hospital Financial Management System">
 <meta name="msapplication-TileColor" content="#059669">
 <meta name="msapplication-config" content="{{ asset('browserconfig.xml') }}">
+
+<script>
+  // Block browser PWA install / 'Open in app' prompts
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    return false;
+  });
+  // Clean up any lingering PWA Service Workers
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+      registrations.forEach(function(registration) {
+        registration.unregister();
+      });
+    }).catch(function() {});
+  }
+</script>
