@@ -20,15 +20,6 @@
     </div>
 
     <div class="flex items-center gap-2.5 flex-wrap">
-      <a 
-        href="{{ route('ap.payment-approvals.export-bank-batch', ['status' => request('status') ?? 'ALL']) }}" 
-        class="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 transition-all"
-        id="btn-export-bank-batch"
-      >
-        <i class="ph-bold ph-export"></i>
-        <span>Export Bank EFT Batch</span>
-      </a>
-
       <!-- Bulk Approval Form -->
       <form method="POST" action="{{ route('ap.payment-approvals.bulk-approve') }}" class="inline">
         @csrf

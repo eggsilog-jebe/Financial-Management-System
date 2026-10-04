@@ -225,8 +225,9 @@ Route::middleware(['auth'])->group(function () {
         // AP Payment Approvals & Disbursement
         Route::middleware(['role:StaffAccountant,FinanceManager,CFO,FinanceDirector,Auditor'])->group(function () {
             Route::get('/payment-approvals', [PaymentApprovalController::class, 'index'])->name('payment-approvals.index');
-            // Backward-compat alias — do not remove; used by AP sidebar link.
+            // Backward-compat aliases — do not remove; used by AP sidebar and table links.
             Route::get('/ap-payment-approvals', [PaymentApprovalController::class, 'index'])->name('ap-approvals');
+            Route::get('/payment-approvals/alias', [PaymentApprovalController::class, 'index'])->name('approvals');
             Route::get('/payment-approvals/export-bank-batch', [PaymentApprovalController::class, 'exportBankBatch'])->name('payment-approvals.export-bank-batch');
         });
         Route::middleware(['role:FinanceManager,CFO,FinanceDirector'])->group(function () {

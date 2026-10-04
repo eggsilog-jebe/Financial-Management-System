@@ -36,6 +36,7 @@ final class Account extends Model
     protected function casts(): array
     {
         return [
+            'code'      => 'string',
             'is_active' => 'boolean',
         ];
     }

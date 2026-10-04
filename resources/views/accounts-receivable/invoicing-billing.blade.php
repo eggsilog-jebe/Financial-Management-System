@@ -119,17 +119,17 @@
     <!-- Responsive Table -->
     <div class="overflow-x-auto custom-scrollbar">
       <table class="w-full text-left text-sm text-slate-700 dark:text-slate-300">
-        <thead class="border-b border-slate-200 bg-slate-50/75 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+        <thead class="border-b border-slate-200 bg-slate-50/75 text-xs font-bold uppercase tracking-wider text-slate-800 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-200">
           <tr>
-            <th scope="col" class="py-3.5 pl-5 pr-3">Invoice #</th>
+            <th scope="col" class="py-3.5 pl-5 pr-3 whitespace-nowrap">Invoice #</th>
             <th scope="col" class="px-3 py-3.5">Patient / Guarantor</th>
-            <th scope="col" class="px-3 py-3.5">Department</th>
-            <th scope="col" class="px-3 py-3.5">Date</th>
-            <th scope="col" class="px-3 py-3.5 text-right font-mono">Gross Total</th>
-            <th scope="col" class="px-3 py-3.5 text-right font-mono">Coverage/Deductions</th>
-            <th scope="col" class="px-3 py-3.5 text-right font-mono">Patient Payable</th>
-            <th scope="col" class="px-3 py-3.5 text-center">Status</th>
-            <th scope="col" class="py-3.5 pl-3 pr-5 text-right">Actions</th>
+            <th scope="col" class="px-3 py-3.5 whitespace-nowrap">Department</th>
+            <th scope="col" class="px-3 py-3.5 whitespace-nowrap">Date</th>
+            <th scope="col" class="px-3 py-3.5 text-right font-mono whitespace-nowrap">Gross Total</th>
+            <th scope="col" class="px-3 py-3.5 text-right font-mono whitespace-nowrap">Coverage/Deductions</th>
+            <th scope="col" class="px-3 py-3.5 text-right font-mono whitespace-nowrap">Patient Payable</th>
+            <th scope="col" class="px-3 py-3.5 text-center whitespace-nowrap">Status</th>
+            <th scope="col" class="py-3.5 pl-3 pr-5 text-right whitespace-nowrap">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -141,48 +141,92 @@
               $effectiveDiscount = strtoupper((string) ($inv->patientAccount?->effective_discount_category ?? $inv->patientAccount?->discount_category ?? 'NONE'));
             @endphp
             <tr class="transition-colors hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-              <td class="py-3.5 pl-5 pr-3 font-mono font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
+              <td class="py-3.5 pl-5 pr-3 font-mono font-bold text-slate-900 dark:text-white text-xs sm:text-sm whitespace-nowrap">
                 {{ $inv->invoice_number }}
               </td>
               <td class="px-3 py-3.5">
-                <div class="font-semibold text-slate-900 dark:text-white text-xs sm:text-sm flex items-center gap-1.5 flex-wrap">
+                <div class="font-bold text-slate-900 dark:text-white text-xs sm:text-sm flex items-center gap-1.5 flex-wrap">
                   <span>{{ $inv->patientAccount?->full_name ?? 'Walk-In Patient' }}</span>
                   @if($effectiveDiscount === 'PWD')
-                    <span class="inline-flex items-center gap-1 rounded bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-700 ring-1 ring-teal-600/20" data-statutory="{{ json_encode(['statutory_category' => 'PWD']) }}">
+                    <span class="inline-flex items-center gap-1 rounded bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-800 dark:text-slate-200 ring-1 ring-slate-300 dark:ring-slate-700" data-statutory="{{ json_encode(['statutory_category' => 'PWD']) }}">
                       <i class="ph-bold ph-wheelchair"></i> PWD 20%
                     </span>
                   @elseif($effectiveDiscount === 'SENIOR_CITIZEN' || $effectiveDiscount === 'SENIOR')
-                    <span class="inline-flex items-center gap-1 rounded bg-purple-50 px-2 py-0.5 text-[10px] font-semibold text-purple-700 ring-1 ring-purple-600/20" data-statutory="{{ json_encode(['statutory_category' => 'SENIOR_CITIZEN']) }}">
+                    <span class="inline-flex items-center gap-1 rounded bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-800 dark:text-slate-200 ring-1 ring-slate-300 dark:ring-slate-700" data-statutory="{{ json_encode(['statutory_category' => 'SENIOR_CITIZEN']) }}">
                       <i class="ph-bold ph-identification-card"></i> Senior 20%
                     </span>
                   @endif
                 </div>
-                <div class="text-[11px] font-mono text-slate-500">MRN: {{ $inv->patientAccount?->patient_id_number ?: 'N/A' }}</div>
+                <div class="text-[11px] font-mono text-slate-600 dark:text-slate-400">MRN: {{ $inv->patientAccount?->patient_id_number ?: 'N/A' }}</div>
               </td>
-              <td class="px-3 py-3.5 text-xs text-slate-600 dark:text-slate-400">
+              <td class="px-3 py-3.5 text-xs text-slate-800 dark:text-slate-200 whitespace-nowrap">
                 {{ $inv->department ?? 'Clinical Services' }}
               </td>
-              <td class="px-3 py-3.5 text-xs text-slate-600 dark:text-slate-400 font-mono">
+              <td class="px-3 py-3.5 text-xs text-slate-800 dark:text-slate-200 font-mono whitespace-nowrap">
                 {{ \Carbon\Carbon::parse($inv->invoice_date)->format('M d, Y') }}
               </td>
-              <td class="px-3 py-3.5 text-right font-mono text-slate-700 dark:text-slate-300">
+              <td class="px-3 py-3.5 text-right font-mono text-slate-900 dark:text-white font-semibold whitespace-nowrap tabular-nums">
                 ₱{{ number_format($gross, 2) }}
               </td>
-              <td class="px-3 py-3.5 text-right font-mono text-emerald-600 dark:text-emerald-400">
-                -₱{{ number_format($coverage, 2) }}
+              @php
+                $statutory = (float) ($inv->discount_amount ?? 0);
+                $insurance = (float) ($inv->insurance_covered ?? 0);
+                $totalDeductions = $statutory + $insurance;
+              @endphp
+              <td class="px-3 py-3.5 text-right font-mono whitespace-nowrap">
+                <div class="font-bold text-slate-900 dark:text-white text-xs tabular-nums">
+                  -₱{{ number_format($totalDeductions, 2) }}
+                </div>
+                <div class="text-[10px] space-y-0.5 mt-0.5 font-mono text-slate-700 dark:text-slate-300">
+                  @if($statutory > 0)
+                    <div title="RA 9994 12% VAT Exemption + 20% Discount">
+                      Statutory: -₱{{ number_format($statutory, 2) }}
+                    </div>
+                  @endif
+                  @if($inv->philhealthClaim && (float) $inv->philhealthClaim->total_case_rate_amount > 0)
+                    <div title="PhilHealth All-Case-Rate Benefit">
+                      PhilHealth: -₱{{ number_format((float) $inv->philhealthClaim->total_case_rate_amount, 2) }}
+                    </div>
+                  @endif
+                  @if($inv->hmoClaims && $inv->hmoClaims->sum('claimed_amount') > 0)
+                    <div title="HMO Letter of Authorization Coverage">
+                      HMO: -₱{{ number_format((float) $inv->hmoClaims->sum('claimed_amount'), 2) }}
+                    </div>
+                  @endif
+                </div>
               </td>
-              <td class="px-3 py-3.5 text-right font-mono font-bold tabular-nums text-slate-900 dark:text-white">
+              <td class="px-3 py-3.5 text-right font-mono font-bold tabular-nums text-slate-900 dark:text-white whitespace-nowrap">
                 ₱{{ number_format($payable, 2) }}
               </td>
-              <td class="px-3 py-3.5 text-center">
+              <td class="px-3 py-3.5 text-center whitespace-nowrap">
                 <x-status-badge :status="$inv->status" />
               </td>
-              <td class="py-3.5 pl-3 pr-5 text-right">
+              <td class="py-3.5 pl-3 pr-5 text-right whitespace-nowrap">
                 <div class="flex items-center justify-end gap-1.5">
+                  <button 
+                    type="button" 
+                    @click="$dispatch('open-breakdown-modal', {
+                      invoice_number: '{{ $inv->invoice_number }}',
+                      patient_name: '{{ addslashes($inv->patientAccount?->full_name ?? 'Walk-In Patient') }}',
+                      mrn: '{{ $inv->patientAccount?->patient_id_number ?? 'N/A' }}',
+                      gross: {{ $gross }},
+                      vat_relief: {{ (float) ($inv->vat_amount ?? 0) }},
+                      discount_total: {{ (float) ($inv->discount_amount ?? 0) }},
+                      philhealth: {{ (float) ($inv->philhealthClaim?->total_case_rate_amount ?? 0) }},
+                      hmo: {{ (float) ($inv->hmoClaims->sum('claimed_amount') ?? 0) }},
+                      hmo_provider: '{{ addslashes($inv->hmoClaims->first()?->hmo_provider ?? ($inv->patientAccount?->hmo_provider ?? 'HMO')) }}',
+                      payable: {{ $payable }}
+                    })"
+                    class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-800 bg-white hover:bg-slate-50 ring-1 ring-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 shadow-sm transition-all cursor-pointer"
+                    title="View Step-by-Step Calculation Breakdown"
+                  >
+                    <i class="ph-bold ph-scales text-slate-700 dark:text-slate-300"></i>
+                    <span>Matrix</span>
+                  </button>
                   <a 
                     href="{{ route('ar.invoices.print', $inv->id) }}" 
                     target="_blank"
-                    class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white transition-colors"
+                    class="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white transition-colors"
                     title="Print Billing Invoice"
                   >
                     <i class="ph-bold ph-printer text-sm"></i>
@@ -215,6 +259,121 @@
     <!-- Pagination -->
     <div class="border-t border-slate-200 p-4 dark:border-slate-800">
       {{ $invoices->links() }}
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Step-by-Step Statutory Calculation Matrix -->
+<div 
+  x-data="{ 
+    open: false, 
+    data: {},
+    fmt(val) { return Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  }" 
+  @open-breakdown-modal.window="open = true; data = $event.detail"
+  x-show="open" 
+  x-cloak
+  class="fixed inset-0 z-50 overflow-y-auto"
+  role="dialog"
+  aria-modal="true"
+>
+  <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="open = false"></div>
+  <div class="flex min-h-full items-center justify-center p-4">
+    <div class="relative w-full max-w-3xl rounded-2xl bg-white dark:bg-slate-900 shadow-2xl ring-1 ring-slate-200 dark:ring-slate-800 p-6 space-y-4">
+      <div class="flex items-start justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+        <div>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="ph-bold ph-scales text-slate-900 dark:text-white"></i>
+            <span>Statutory &amp; Multi-Payer Adjudication Breakdown</span>
+          </h3>
+          <p class="text-xs text-slate-700 dark:text-slate-300 mt-1">
+            Invoice: <span class="font-mono font-bold text-slate-900 dark:text-white" x-text="data.invoice_number"></span> • Patient: <span class="font-bold text-slate-900 dark:text-white" x-text="data.patient_name"></span>
+          </p>
+        </div>
+        <button type="button" @click="open = false" class="rounded-lg p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
+          <i class="ph-bold ph-x text-lg"></i>
+        </button>
+      </div>
+
+      <div class="overflow-x-auto rounded-xl border border-slate-300 dark:border-slate-700">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-100 dark:bg-slate-800 font-bold uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-300 dark:border-slate-700">
+            <tr>
+              <th class="px-3.5 py-2.5">Calculation Step</th>
+              <th class="px-3.5 py-2.5">Legal &amp; Accounting Basis</th>
+              <th class="px-3.5 py-2.5 text-right font-mono">Amount</th>
+              <th class="px-3.5 py-2.5 text-right font-mono">Running Balance</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+            <tr class="bg-white dark:bg-slate-900 font-semibold">
+              <td class="px-3.5 py-2.5 text-slate-900 dark:text-white">Gross Clinical Charges</td>
+              <td class="px-3.5 py-2.5 text-slate-800 dark:text-slate-200 font-normal">Sum of Inpatient Room, Lab, X-Ray, Pharmacy, PF</td>
+              <td class="px-3.5 py-2.5 text-right text-slate-400 font-mono">—</td>
+              <td class="px-3.5 py-2.5 text-right font-mono text-slate-900 dark:text-white font-bold" x-text="'₱' + fmt(data.gross)"></td>
+            </tr>
+            <template x-if="data.vat_relief > 0">
+              <tr class="bg-slate-50/50 dark:bg-slate-800/20">
+                <td class="px-3.5 py-2.5 text-slate-900 dark:text-white font-semibold">1. 12% VAT Exemption</td>
+                <td class="px-3.5 py-2.5 text-slate-800 dark:text-slate-200">
+                  Under RA 9994 / RA 10754, exempt from 12% VAT:<br>
+                  <span class="font-mono text-[11px] text-slate-900 dark:text-white" x-text="'Net of VAT = ₱' + fmt(data.gross) + ' / 1.12 = ₱' + fmt(data.gross - data.vat_relief)"></span><br>
+                  <span class="font-mono text-[11px] text-slate-900 dark:text-white" x-text="'VAT Relief = ₱' + fmt(data.gross) + ' - ₱' + fmt(data.gross - data.vat_relief)"></span>
+                </td>
+                <td class="px-3.5 py-2.5 text-right font-mono text-slate-900 dark:text-white font-bold" x-text="'-₱' + fmt(data.vat_relief)"></td>
+                <td class="px-3.5 py-2.5 text-right font-mono text-slate-900 dark:text-white font-medium" x-text="'₱' + fmt(data.gross - data.vat_relief)"></td>
+              </tr>
+            </template>
+            <template x-if="(data.discount_total - data.vat_relief) > 0">
+              <tr class="bg-white dark:bg-slate-900">
+                <td class="px-3.5 py-2.5 text-slate-900 dark:text-white font-semibold">2. 20% Statutory Discount</td>
+                <td class="px-3.5 py-2.5 text-slate-800 dark:text-slate-200">
+                  By law, the 20% discount applies to the Net of VAT amount:<br>
+                  <span class="font-mono text-[11px] text-slate-900 dark:text-white" x-text="'₱' + fmt(data.gross - data.vat_relief) + ' × 20%'"></span>
+                </td>
+                <td class="px-3.5 py-2.5 text-right font-mono text-slate-900 dark:text-white font-bold" x-text="'-₱' + fmt(data.discount_total - data.vat_relief)"></td>
+                <td class="px-3.5 py-2.5 text-right font-mono text-slate-900 dark:text-white font-medium" x-text="'₱' + fmt(data.gross - data.discount_total)"></td>
+              </tr>
+            </template>
+            <template x-if="data.discount_total > 0">
+              <tr class="bg-slate-100 dark:bg-slate-800/60 font-semibold border-y border-slate-300 dark:border-slate-700">
+                <td class="px-3.5 py-2 text-slate-900 dark:text-white font-bold">Total Statutory Relief</td>
+                <td class="px-3.5 py-2 text-slate-800 dark:text-slate-200">VAT Relief + 20% Senior/PWD Discount</td>
+                <td class="px-3.5 py-2 text-right font-mono text-slate-900 dark:text-white font-bold" x-text="'-₱' + fmt(data.discount_total)"></td>
+                <td class="px-3.5 py-2 text-right font-mono text-slate-900 dark:text-white font-bold" x-text="'₱' + fmt(data.gross - data.discount_total)"></td>
+              </tr>
+            </template>
+            <template x-if="data.philhealth > 0">
+              <tr class="bg-slate-50/50 dark:bg-slate-800/20">
+                <td class="px-3.5 py-2.5 text-slate-900 dark:text-white font-semibold">3. PhilHealth ACR Deduction</td>
+                <td class="px-3.5 py-2.5 text-slate-800 dark:text-slate-200">Transmitted Inpatient Case Rate Claim (Coverage/Deductions)</td>
+                <td class="px-3.5 py-2.5 text-right font-mono text-slate-900 dark:text-white font-bold" x-text="'-₱' + fmt(data.philhealth)"></td>
+                <td class="px-3.5 py-2.5 text-right font-mono text-slate-900 dark:text-white font-medium" x-text="'₱' + fmt(data.gross - data.discount_total - data.philhealth)"></td>
+              </tr>
+            </template>
+            <template x-if="data.hmo > 0">
+              <tr class="bg-white dark:bg-slate-900">
+                <td class="px-3.5 py-2.5 text-slate-900 dark:text-white font-semibold">4. Private HMO Coverage</td>
+                <td class="px-3.5 py-2.5 text-slate-800 dark:text-slate-200" x-text="'Approved Letter of Authorization (' + data.hmo_provider + ')'"></td>
+                <td class="px-3.5 py-2.5 text-right font-mono text-slate-900 dark:text-white font-bold" x-text="'-₱' + fmt(data.hmo)"></td>
+                <td class="px-3.5 py-2.5 text-right font-mono text-slate-900 dark:text-white font-medium" x-text="'₱' + fmt(data.gross - data.discount_total - data.philhealth - data.hmo)"></td>
+              </tr>
+            </template>
+            <tr class="bg-slate-100 dark:bg-slate-800 font-bold border-t-2 border-slate-900 dark:border-white">
+              <td class="px-3.5 py-2.5 text-slate-900 dark:text-white uppercase font-bold">Final Patient Payable</td>
+              <td class="px-3.5 py-2.5 text-slate-800 dark:text-slate-200 font-medium">Out-of-Pocket Balance Due at Cashier</td>
+              <td class="px-3.5 py-2.5 text-right text-slate-400 font-mono">—</td>
+              <td class="px-3.5 py-2.5 text-right font-mono text-slate-900 dark:text-white font-extrabold text-sm" x-text="'₱' + fmt(data.payable)"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button type="button" @click="open = false" class="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-sm">
+          Close Matrix
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -255,7 +414,10 @@
       },
       get statutoryDiscount() {
         if (this.discountType === 'SENIOR_CITIZEN' || this.discountType === 'PWD') {
-          return this.grossTotal * 0.20;
+          const netOfVat = this.grossTotal / 1.12;
+          const vatRelief = this.grossTotal - netOfVat;
+          const discount = netOfVat * 0.20;
+          return vatRelief + discount;
         }
         return 0.00;
       },
@@ -330,13 +492,13 @@
 
     <!-- Deductions Waterfall Panel -->
     <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 ring-1 ring-slate-200 dark:ring-slate-700">
-      <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-1.5">
-        <i class="ph-bold ph-scales text-purple-600"></i>
+      <h4 class="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white mb-3 flex items-center gap-1.5">
+        <i class="ph-bold ph-scales text-slate-900 dark:text-white"></i>
         <span>Third-Party Deductions &amp; Statutory Matrix</span>
       </h4>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         <div>
-          <label class="block text-xs font-semibold text-slate-500 mb-1">Statutory Exemption</label>
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Statutory Exemption</label>
           <select name="discount_type" x-model="discountType" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs font-semibold text-slate-900 ring-1 ring-inset ring-slate-300 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
             <option value="NONE">None (Regular)</option>
             <option value="SENIOR_CITIZEN">Senior Citizen (RA 9994 20%)</option>
@@ -345,37 +507,37 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-500 mb-1">PhilHealth Case Rate (₱)</label>
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">PhilHealth Case Rate (₱)</label>
           <input type="number" step="0.01" name="philhealth_primary_case_rate_amount" x-model.number="philhealthBenefit" placeholder="0.00" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs font-mono text-right text-slate-900 ring-1 ring-inset ring-slate-300 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-500 mb-1">HMO Approved Limit (₱)</label>
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">HMO Approved Limit (₱)</label>
           <input type="number" step="0.01" name="hmo_approved_limit" x-model.number="hmoCoverage" placeholder="0.00" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs font-mono text-right text-slate-900 ring-1 ring-inset ring-slate-300 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
         </div>
       </div>
 
       <!-- Real-Time Waterfall Calculation Summary Bar -->
       <div class="mt-4 p-3.5 rounded-xl bg-white dark:bg-slate-900 ring-1 ring-slate-200 dark:ring-slate-700 font-mono text-xs space-y-1.5">
-        <div class="flex justify-between text-slate-600 dark:text-slate-400">
+        <div class="flex justify-between text-slate-800 dark:text-slate-200 font-medium">
           <span>Gross Clinical Total:</span>
-          <span>₱<span x-text="grossTotal.toFixed(2)"></span></span>
+          <span class="font-bold text-slate-900 dark:text-white">₱<span x-text="grossTotal.toFixed(2)"></span></span>
         </div>
-        <div class="flex justify-between text-purple-600 dark:text-purple-400" x-show="statutoryDiscount > 0">
+        <div class="flex justify-between text-slate-800 dark:text-slate-200 font-medium" x-show="statutoryDiscount > 0">
           <span>Statutory 20% Discount (RA 9994/10754):</span>
-          <span>-₱<span x-text="statutoryDiscount.toFixed(2)"></span></span>
+          <span class="font-bold text-slate-900 dark:text-white">-₱<span x-text="statutoryDiscount.toFixed(2)"></span></span>
         </div>
-        <div class="flex justify-between text-blue-600 dark:text-blue-400" x-show="philhealthBenefit > 0">
+        <div class="flex justify-between text-slate-800 dark:text-slate-200 font-medium" x-show="philhealthBenefit > 0">
           <span>PhilHealth Case Rate Deduction:</span>
-          <span>-₱<span x-text="(parseFloat(philhealthBenefit) || 0).toFixed(2)"></span></span>
+          <span class="font-bold text-slate-900 dark:text-white">-₱<span x-text="(parseFloat(philhealthBenefit) || 0).toFixed(2)"></span></span>
         </div>
-        <div class="flex justify-between text-sky-600 dark:text-sky-400" x-show="hmoCoverage > 0">
+        <div class="flex justify-between text-slate-800 dark:text-slate-200 font-medium" x-show="hmoCoverage > 0">
           <span>Private HMO Guarantee Deduction:</span>
-          <span>-₱<span x-text="(parseFloat(hmoCoverage) || 0).toFixed(2)"></span></span>
+          <span class="font-bold text-slate-900 dark:text-white">-₱<span x-text="(parseFloat(hmoCoverage) || 0).toFixed(2)"></span></span>
         </div>
-        <div class="border-t border-dashed border-slate-200 dark:border-slate-700 pt-2 flex justify-between font-bold text-sm text-slate-900 dark:text-white">
+        <div class="border-t-2 border-slate-900 dark:border-white pt-2 flex justify-between font-bold text-sm text-slate-900 dark:text-white">
           <span>Net Patient Out-Of-Pocket Due:</span>
-          <span class="text-emerald-600 dark:text-emerald-400">₱<span x-text="netPayable.toFixed(2)"></span></span>
+          <span class="font-extrabold text-slate-900 dark:text-white">₱<span x-text="netPayable.toFixed(2)"></span></span>
         </div>
       </div>
     </div>

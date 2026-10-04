@@ -242,4 +242,56 @@ body.modal-open {
     animation: mild-glow-rose 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* ==========================================================================
+   Smooth Dark / Light Mode Transition System
+   ========================================================================== */
+
+/* 1. Global root surface transition */
+html,
+body {
+    transition: background-color 280ms cubic-bezier(0.16, 1, 0.3, 1),
+                color 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 2. Modern View Transitions API Support (Zero lag, cinematic cross-fade) */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 320ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+::view-transition-new(root) {
+    mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+    mix-blend-mode: normal;
+}
+
+/* 3. Universal Fallback Interpolation for all components */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+    transition: background-color 280ms cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 280ms cubic-bezier(0.16, 1, 0.3, 1),
+                color 220ms cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 280ms cubic-bezier(0.16, 1, 0.3, 1),
+                fill 220ms cubic-bezier(0.16, 1, 0.3, 1),
+                stroke 220ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+    transition-delay: 0s !important;
+}
+
+/* Respect user's accessibility reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+    html,
+    body,
+    html.theme-transitioning,
+    html.theme-transitioning * {
+        transition: none !important;
+    }
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation: none !important;
+    }
+}
+
 

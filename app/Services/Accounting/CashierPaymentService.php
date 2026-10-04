@@ -88,8 +88,12 @@ final class CashierPaymentService
                 throw new DomainException("Collection amount must be greater than zero.");
             }
 
-            if (bccomp($amount, $openBalance, 4) > 0) {
-                throw new DomainException("Payment amount (₱{$amount}) exceeds open invoice balance (₱{$openBalance}).");
+            // Handle centavo rounding tolerance (e.g. physical cash/tender rounded to 2 decimals exceeding 4-decimal balance by <= ₱0.01)
+            $balanceDiff = bcsub($amount, $openBalance, 4);
+            if (bccomp($balanceDiff, '0.0000', 4) > 0 && bccomp($balanceDiff, '0.0100', 4) <= 0) {
+                $amount = $openBalance;
+            } elseif (bccomp($amount, $openBalance, 4) > 0) {
+                throw new DomainException("Payment amount (₱" . number_format((float) $amount, 2) . ") exceeds open invoice balance (₱" . number_format((float) $openBalance, 2) . ").");
             }
 
             // Calculate change if cash tendered

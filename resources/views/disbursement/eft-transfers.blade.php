@@ -30,6 +30,7 @@
     <x-stat-card 
       title="Total EFT Payouts" 
       :value="$totalTransfers ?? 0" 
+      :isCurrency="false"
       icon="ph-paper-plane-tilt" 
       color="slate" 
       subtitle="Cumulative electronic transfers"

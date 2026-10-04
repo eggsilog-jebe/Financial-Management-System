@@ -755,7 +755,7 @@
   >
     <div id="printableTurnoverArea" class="space-y-4 text-xs font-mono">
       <div class="text-center border-b border-slate-200 pb-3">
-        <h4 class="font-bold text-sm uppercase text-slate-900 dark:text-white">St. Jude Metropolitan Medical Center</h4>
+        <h4 class="font-bold text-sm uppercase text-slate-900 dark:text-white">Financial Management System</h4>
         <span class="text-slate-500 text-[11px]">Cashier Shift Custody Turnover Slip &bull; BIR CAS Audited</span>
       </div>
 

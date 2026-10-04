@@ -46,6 +46,11 @@ final class VendorInvoiceController extends Controller
             $query->where('status', $status);
         }
 
+        $matchStatus = $request->query('match_status');
+        if ($matchStatus) {
+            $query->whereHas('threeWayMatch', fn ($tq) => $tq->where('match_status', $matchStatus));
+        }
+
         if ($vendorId) {
             $query->where('vendor_id', (int) $vendorId);
         }
@@ -61,7 +66,9 @@ final class VendorInvoiceController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search): void {
                 $q->where('bill_number', 'LIKE', "%{$search}%")
-                  ->orWhereHas('vendor', fn ($vq) => $vq->where('name', 'LIKE', "%{$search}%")->orWhere('tin', 'LIKE', "%{$search}%"))
+                  ->orWhereHas('vendor', fn ($vq) => $vq->where('name', 'LIKE', "%{$search}%")
+                      ->orWhere('code', 'LIKE', "%{$search}%")
+                      ->orWhere('tin', 'LIKE', "%{$search}%"))
                   ->orWhereHas('threeWayMatch', fn ($tq) => $tq->where('vendor_invoice_number', 'LIKE', "%{$search}%")
                       ->orWhere('po_number', 'LIKE', "%{$search}%")
                       ->orWhere('grn_number', 'LIKE', "%{$search}%"));
@@ -70,35 +77,46 @@ final class VendorInvoiceController extends Controller
 
         $invoices = $query->paginate(15)->withQueryString();
 
-        $totalBilled = PurchaseBill::sum('total_amount');
-        $totalPending = PurchaseBill::whereIn('status', ['UNPAID', 'PARTIAL', 'OVERDUE', 'APPROVED'])
+        $totalOpenBills = PurchaseBill::whereIn('status', ['UNPAID', 'PARTIAL', 'OVERDUE', 'APPROVED'])->count();
+        $totalPayableAmount = (float) (PurchaseBill::whereIn('status', ['UNPAID', 'PARTIAL', 'OVERDUE', 'APPROVED'])
             ->selectRaw('COALESCE(SUM(total_amount - paid_amount), 0) as aggregate')
-            ->value('aggregate') ?? '0.0000';
+            ->value('aggregate') ?? 0);
+        $totalEwtWithheld = (float) (\App\Models\Bir2307Certificate::sum('tax_withheld') ?? 0);
+        $totalBilled = PurchaseBill::sum('total_amount');
+        $totalPending = $totalPayableAmount;
         $totalVouchers = DisbursementVoucher::count();
         $bankAccounts = BankAccount::where('status', 'Active')->get();
         $vendors = Vendor::where('status', 'Active')->orderBy('name')->get();
 
-        return view('accounts-payable.invoices-vouchers', compact(
-            'invoices',
-            'totalBilled',
-            'totalPending',
-            'totalVouchers',
-            'bankAccounts',
-            'vendors',
-            'status',
-            'search',
-            'startDate',
-            'endDate',
-            'vendorId',
-        ));
+        return view('accounts-payable.invoices-vouchers', [
+            'invoices'           => $invoices,
+            'totalOpenBills'     => $totalOpenBills,
+            'totalPayableAmount' => $totalPayableAmount,
+            'totalEwtWithheld'   => $totalEwtWithheld,
+            'totalBilled'        => $totalBilled,
+            'totalPending'       => $totalPending,
+            'totalVouchers'      => $totalVouchers,
+            'bankAccounts'       => $bankAccounts,
+            'vendors'            => $vendors,
+            'status'             => $status,
+            'matchStatus'        => $matchStatus,
+            'search'             => $search,
+            'startDate'          => $startDate,
+            'endDate'            => $endDate,
+            'vendorId'           => $vendorId,
+        ]);
     }
 
     public function prepareVoucher(PrepareDisbursementVoucherRequest $request): RedirectResponse
     {
-        $dto = DisbursementVoucherData::fromArray($request->validated());
-        $voucher = $this->disbursementService->prepareDisbursementVoucher($dto, auth()->id() ?? 1);
+        try {
+            $dto = DisbursementVoucherData::fromArray($request->validated());
+            $voucher = $this->disbursementService->prepareDisbursementVoucher($dto, auth()->id() ?? 1);
 
-        return redirect()->back()->with('success', "Disbursement Voucher [{$voucher->voucher_number}] prepared for ₱" . number_format((float) $voucher->net_disbursed_amount, 2) . ". Routed to AP Payment Approvals.");
+            return redirect()->back()->with('success', "Disbursement Voucher [{$voucher->voucher_number}] prepared for ₱" . number_format((float) $voucher->net_disbursed_amount, 2) . ". Routed to AP Payment Approvals.");
+        } catch (\DomainException|\Exception $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
     }
 
     public function quickApprove(int|string $id): RedirectResponse

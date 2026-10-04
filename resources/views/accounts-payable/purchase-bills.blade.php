@@ -92,6 +92,20 @@
     </div>
   @endif
 
+  @if($errors->any())
+    <div class="rounded-xl bg-rose-50 p-4 text-xs font-semibold text-rose-800 ring-1 ring-rose-600/20 dark:bg-rose-950/40 dark:text-rose-300">
+      <div class="flex items-center gap-2 mb-2 font-bold text-rose-700 dark:text-rose-300">
+        <i class="ph-bold ph-warning-circle text-lg text-rose-600"></i>
+        <span>Please correct the errors below before saving:</span>
+      </div>
+      <ul class="list-disc list-inside space-y-1 pl-1">
+        @foreach($errors->all() as $error)
+          <li>{{ $error }}</li>
+        @endforeach
+      </ul>
+    </div>
+  @endif
+
   <!-- Metric Summary Cards -->
   <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5">
     <x-stat-card 
@@ -502,8 +516,9 @@
   >
     <div 
       x-data="{
-        poAmount: 0.00,
-        grnAmount: 0.00,
+        autoSyncAmounts: true,
+        customPoAmount: null,
+        customGrnAmount: null,
         items: [
           { description: '', expense_type: 'GOODS_INVENTORY', atc_code: 'WI158', quantity: 1, unit_price: 0.00 }
         ],
@@ -518,6 +533,12 @@
         get totalGross() {
           return this.items.reduce((sum, it) => sum + ((parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0)), 0);
         },
+        get poAmount() {
+          return this.autoSyncAmounts ? this.totalGross : (parseFloat(this.customPoAmount) || 0);
+        },
+        get grnAmount() {
+          return this.autoSyncAmounts ? this.totalGross : (parseFloat(this.customGrnAmount) || 0);
+        },
         get totalEwt() {
           return this.items.reduce((sum, it) => {
             const gross = (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0);
@@ -528,11 +549,11 @@
         get totalNet() {
           return this.totalGross - this.totalEwt;
         },
-        get variance() {
-          return this.totalGross - (parseFloat(this.poAmount) || 0);
+        get priceVariance() {
+          return this.totalGross - this.poAmount;
         },
         get isMatched() {
-          return Math.abs(this.variance) < 0.001 && this.poAmount > 0;
+          return Math.abs(this.priceVariance) < 0.001 && this.totalGross > 0;
         }
       }" 
       class="space-y-5"
@@ -560,40 +581,187 @@
         </div>
       </div>
 
-      <!-- 3-Way Matching Inputs: PO ↔ GRN ↔ Vendor SI -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 dark:bg-slate-800/60 dark:ring-slate-700">
-        <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">1. Purchase Order (PO #)</label>
-          <input type="text" name="po_number" placeholder="e.g. PO-2026-0042" class="w-full rounded-xl border-0 bg-white py-2 px-3 font-mono text-xs text-slate-900 ring-1 ring-inset ring-slate-300 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
-          <input type="number" step="0.01" min="0" name="po_amount" x-model.number="poAmount" placeholder="PO Ordered Amount ₱" class="mt-1 w-full rounded-xl border-0 bg-white py-1.5 px-3 font-mono text-xs text-right ring-1 ring-inset ring-slate-300 dark:bg-slate-800 dark:text-white">
+      <!-- 3-Way Verification Documents & Controls -->
+      <div class="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-slate-800/60 dark:ring-slate-700 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-200/80 pb-3 dark:border-slate-700">
+          <div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
+              <i class="ph-bold ph-scales text-emerald-600"></i>
+              <span>3-Way Verification (PO ↔ Delivery ↔ Supplier Bill)</span>
+            </h4>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Validate hospital purchase order limits and warehouse delivery receiving against this bill.</p>
+          </div>
+
+          <!-- Auto-Match vs Custom Variance Toggle -->
+          <div class="flex items-center gap-2">
+            <button 
+              type="button" 
+              @click="autoSyncAmounts = !autoSyncAmounts; if (!autoSyncAmounts && !customPoAmount) { customPoAmount = totalGross; customGrnAmount = totalGross; }" 
+              class="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all shadow-sm ring-1 cursor-pointer"
+              :class="autoSyncAmounts 
+                ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/30 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-300' 
+                : 'bg-white text-slate-700 ring-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-600'"
+            >
+              <i class="ph-bold" :class="autoSyncAmounts ? 'ph-check-circle text-emerald-600' : 'ph-pencil-simple text-blue-600'"></i>
+              <span x-text="autoSyncAmounts ? '✓ 100% Match Mode (Auto-Synced)' : 'Custom Variance Mode'"></span>
+            </button>
+          </div>
         </div>
 
-        <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">2. Goods Receipt Note (GRN #)</label>
-          <input type="text" name="grn_number" placeholder="e.g. GRN-2026-0092" class="w-full rounded-xl border-0 bg-white py-2 px-3 font-mono text-xs text-slate-900 ring-1 ring-inset ring-slate-300 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
-          <input type="number" step="0.01" min="0" name="grn_amount" x-model.number="grnAmount" placeholder="GRN Received Amount ₱" class="mt-1 w-full rounded-xl border-0 bg-white py-1.5 px-3 font-mono text-xs text-right ring-1 ring-inset ring-slate-300 dark:bg-slate-800 dark:text-white">
+        <!-- 3 Columns for Documents & Values -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <!-- Col 1: Purchase Order -->
+          <div class="space-y-2 rounded-xl bg-white p-3 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:ring-slate-700">
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+              <span>1. Purchase Order (PO #)</span>
+              <span class="text-[10px] font-normal text-slate-400">Optional</span>
+            </label>
+            <input 
+              type="text" 
+              name="po_number" 
+              placeholder="e.g. PO-2026-0042" 
+              class="w-full rounded-xl border-0 bg-slate-50 py-1.5 px-3 font-mono text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:bg-white focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600"
+            >
+
+            <div class="pt-1">
+              <div class="flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <span>Authorized PO Amount:</span>
+                <span 
+                  x-show="autoSyncAmounts" 
+                  class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400"
+                >Auto-synced</span>
+              </div>
+
+              <!-- When Auto-Synced -->
+              <div 
+                x-show="autoSyncAmounts" 
+                class="flex items-center justify-between rounded-xl bg-emerald-50/60 px-3 py-1.5 text-xs font-mono font-bold text-emerald-800 ring-1 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-300"
+              >
+                <span>₱</span>
+                <span x-text="totalGross.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
+              </div>
+
+              <!-- When Custom Variance Mode -->
+              <div x-show="!autoSyncAmounts" x-cloak class="relative">
+                <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs font-bold text-slate-400">₱</span>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  min="0" 
+                  x-model.number="customPoAmount" 
+                  placeholder="0.00" 
+                  class="w-full rounded-xl border-0 bg-white py-1.5 pl-7 pr-3 text-xs font-mono text-right font-bold text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600"
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- Col 2: Goods Receipt Note -->
+          <div class="space-y-2 rounded-xl bg-white p-3 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:ring-slate-700">
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+              <span>2. Delivery Receipt (GRN #)</span>
+              <span class="text-[10px] font-normal text-slate-400">Optional</span>
+            </label>
+            <input 
+              type="text" 
+              name="grn_number" 
+              placeholder="e.g. GRN-2026-0092" 
+              class="w-full rounded-xl border-0 bg-slate-50 py-1.5 px-3 font-mono text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:bg-white focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600"
+            >
+
+            <div class="pt-1">
+              <div class="flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <span>Received GRN Amount:</span>
+                <span 
+                  x-show="autoSyncAmounts" 
+                  class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400"
+                >Auto-synced</span>
+              </div>
+
+              <!-- When Auto-Synced -->
+              <div 
+                x-show="autoSyncAmounts" 
+                class="flex items-center justify-between rounded-xl bg-emerald-50/60 px-3 py-1.5 text-xs font-mono font-bold text-emerald-800 ring-1 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-300"
+              >
+                <span>₱</span>
+                <span x-text="totalGross.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
+              </div>
+
+              <!-- When Custom Variance Mode -->
+              <div x-show="!autoSyncAmounts" x-cloak class="relative">
+                <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs font-bold text-slate-400">₱</span>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  min="0" 
+                  x-model.number="customGrnAmount" 
+                  placeholder="0.00" 
+                  class="w-full rounded-xl border-0 bg-white py-1.5 pl-7 pr-3 text-xs font-mono text-right font-bold text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600"
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- Col 3: Vendor Sales Invoice -->
+          <div class="space-y-2 rounded-xl bg-white p-3 ring-1 ring-slate-200/70 dark:bg-slate-900 dark:ring-slate-700">
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+              <span>3. Supplier Sales Invoice #</span>
+              <span class="text-rose-500 font-bold">*</span>
+            </label>
+            <input 
+              type="text" 
+              name="vendor_invoice_number" 
+              placeholder="e.g. SI-88992211" 
+              required 
+              class="w-full rounded-xl border-0 bg-slate-50 py-1.5 px-3 font-mono text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:bg-white focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600"
+            >
+
+            <div class="pt-1">
+              <div class="flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <span>Calculated Bill Total:</span>
+                <span class="text-[10px] text-slate-400">From line items</span>
+              </div>
+              <div class="flex items-center justify-between rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-mono font-bold text-slate-900 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-white dark:ring-slate-700">
+                <span>₱</span>
+                <span x-text="totalGross.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">3. Vendor Sales Invoice # <span class="text-rose-500">*</span></label>
-          <input type="text" name="vendor_invoice_number" placeholder="e.g. SI-88992211" required class="w-full rounded-xl border-0 bg-white py-2 px-3 font-mono text-xs text-slate-900 ring-1 ring-inset ring-slate-300 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
-          <span class="text-[10px] text-slate-400 mt-1 block">Supplier actual billing reference</span>
-        </div>
-      </div>
+        <!-- Hidden inputs submitted to backend -->
+        <input type="hidden" name="po_amount" :value="poAmount">
+        <input type="hidden" name="grn_amount" :value="grnAmount">
 
-      <!-- Live 3-Way Match Calculator Card -->
-      <div 
-        class="rounded-xl p-4 ring-1 flex flex-col sm:flex-row items-center justify-between gap-3"
-        :class="isMatched ? 'bg-emerald-50 text-emerald-800 ring-emerald-200' : 'bg-slate-100 text-slate-700 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700'"
-      >
-        <div>
-          <span class="font-bold text-xs uppercase tracking-wider block">Live 3-Way Match Verification</span>
-          <span class="text-xs" x-text="isMatched ? '✓ 100% PO & Bill Totals Match (0.00 Variance)' : 'PO Total: ₱' + (parseFloat(poAmount)||0).toFixed(2) + ' • Bill Total: ₱' + totalGross.toFixed(2)"></span>
-        </div>
+        <!-- Live 3-Way Match Verification Status Banner -->
+        <div 
+          class="rounded-xl p-3.5 ring-1 flex flex-col sm:flex-row items-center justify-between gap-3 transition-colors"
+          :class="totalGross === 0 
+            ? 'bg-slate-100/80 text-slate-700 ring-slate-200 dark:bg-slate-800/80 dark:text-slate-300 dark:ring-slate-700' 
+            : (isMatched 
+              ? 'bg-emerald-50 text-emerald-900 ring-emerald-600/20 dark:bg-emerald-950/40 dark:text-emerald-200' 
+              : 'bg-amber-50 text-amber-900 ring-amber-600/30 dark:bg-amber-950/40 dark:text-amber-200')"
+        >
+          <div class="flex items-center gap-2.5">
+            <i class="ph-bold text-lg" :class="totalGross === 0 ? 'ph-info text-blue-600' : (isMatched ? 'ph-check-circle text-emerald-600' : 'ph-warning text-amber-600')"></i>
+            <div>
+              <span class="font-bold text-xs uppercase tracking-wider block" x-text="totalGross === 0 ? '3-Way Verification Ready' : (isMatched ? '3-Way Match Verified (100% Consistent)' : 'Price Variance Detected')"></span>
+              <span class="text-[11px] text-slate-600 dark:text-slate-300" x-text="totalGross === 0 
+                ? 'Add bill line items below. PO and delivery amounts will auto-synchronize to ensure 100% match.'
+                : (isMatched 
+                  ? 'Purchase order limit, goods receipt, and supplier invoice totals match perfectly.' 
+                  : 'Variance between PO (₱' + poAmount.toFixed(2) + ') and Bill Total (₱' + totalGross.toFixed(2) + ') is ₱' + Math.abs(priceVariance).toFixed(2) + '. Will require managerial approval.')"></span>
+            </div>
+          </div>
 
-        <div class="font-mono text-xs sm:text-sm font-bold">
-          <span>Variance: </span>
-          <span :class="Math.abs(variance) < 0.001 ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold'" x-text="'₱' + Math.abs(variance).toFixed(2)"></span>
+          <div class="font-mono text-xs sm:text-sm font-bold flex items-center gap-2">
+            <span class="text-slate-500 dark:text-slate-400">Variance:</span>
+            <span 
+              class="px-2 py-0.5 rounded-lg text-xs" 
+              :class="Math.abs(priceVariance) < 0.001 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300'"
+              x-text="'₱' + Math.abs(priceVariance).toFixed(2)"
+            ></span>
+          </div>
         </div>
       </div>
 
@@ -687,6 +855,14 @@
       </div>
     </div>
   </x-modal>
+
+@if($errors->any())
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    window.dispatchEvent(new CustomEvent('open-modal', { detail: 'createBillModal' }));
+  });
+</script>
+@endif
 
 </div>
 @endsection

@@ -45,11 +45,10 @@
       <!-- Header -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-6 mb-6">
         <div>
-          <h1 class="text-xl font-extrabold tracking-tight text-slate-900">
-            ST. JUDE METROPOLITAN MEDICAL CENTER
+          <h1 class="text-xl font-extrabold tracking-tight text-slate-900 uppercase">
+            Financial Management System
           </h1>
-          <p class="text-xs text-slate-500 mt-0.5">1029 Ortigas Center, Pasig City, Metro Manila, Philippines</p>
-          <p class="text-[11px] text-slate-400 mt-0.5 font-mono">BIR VAT Reg. TIN: 004-991-234-000 | CAS Permit: CAS-2026-MED-0991</p>
+          <p class="text-xs text-slate-600 mt-0.5 font-medium">Novaliches, Quezon City, Metro Manila, Philippines</p>
         </div>
         <div class="text-left sm:text-right">
           <span class="inline-flex items-center px-3 py-1 rounded-xl text-xs font-bold tracking-wider uppercase bg-rose-50 text-rose-700 ring-1 ring-rose-500/20 mb-2">
@@ -163,7 +162,7 @@
 
       <!-- Payment Remittance Notice & Signatures -->
       <div class="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200/60 mb-8 text-xs text-slate-500">
-        <strong>Payment Remittance Notice:</strong> Please present this statement at the Hospital Cashier Desk or remit via Online Banking/EFT. Checks must be made payable to <em>St. Jude Metropolitan Medical Center</em>.
+        <strong>Payment Remittance Notice:</strong> Please present this statement at the Cashier Desk or remit via Online Banking/EFT. Checks must be made payable to <em>Financial Management System</em>.
       </div>
 
       <div class="grid grid-cols-3 gap-6 text-center text-xs text-slate-500 pt-6">

@@ -71,8 +71,8 @@
       subtitle="Combined available liquid funds"
     />
     @php 
-      $mainAccount = ($bankAccounts ?? collect())->where('purpose', 'like', '%Operations%')->first(); 
-      $collectionsAccount = ($bankAccounts ?? collect())->where('purpose', 'like', '%Collections%')->first();
+      $mainAccount = ($bankAccounts ?? collect())->first(fn($a) => str_contains(strtolower($a->name . ' ' . $a->purpose), 'operat')); 
+      $collectionsAccount = ($bankAccounts ?? collect())->first(fn($a) => str_contains(strtolower($a->name . ' ' . $a->purpose), 'collect') || str_contains(strtolower($a->name . ' ' . $a->purpose), 'treasury'));
     @endphp
     <x-stat-card 
       title="Main Operating Fund" 

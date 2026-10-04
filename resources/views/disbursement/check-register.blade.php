@@ -51,6 +51,7 @@
     <x-stat-card 
       title="Total Checks Logged" 
       :value="$totalIssued ?? 0" 
+      :isCurrency="false"
       icon="ph-file-text" 
       color="slate" 
       subtitle="Cumulative serial checks in ledger"

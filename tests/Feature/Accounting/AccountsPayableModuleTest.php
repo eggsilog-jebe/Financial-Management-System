@@ -510,8 +510,7 @@ final class AccountsPayableModuleTest extends TestCase
         $indexResponse->assertSee('BILL-APEX-001');
         $indexResponse->assertSee('INV-APEX-9988');
         $indexResponse->assertSee('Apex Diagnostics Inc');
-        $indexResponse->assertSee('Export AP Register (CSV)');
-        $indexResponse->assertSee('Generate BIR 2307 Batch');
+        $indexResponse->assertSee('Record Supplier Bill');
 
         // 2. Export AP Register CSV
         $exportResponse = $this->get('/accounts-payable/invoices-vouchers/export?vendor_id=' . $vendor->id);
@@ -723,7 +722,6 @@ final class AccountsPayableModuleTest extends TestCase
         $viewRes = $this->get('/accounts-payable/payment-approvals');
         $viewRes->assertStatus(200);
         $viewRes->assertSee('DV-TEST-001');
-        $viewRes->assertSee('Export Bank EFT Batch');
         $viewRes->assertSee('Authorize Selected Vouchers');
 
         // 2. Reject Voucher 2

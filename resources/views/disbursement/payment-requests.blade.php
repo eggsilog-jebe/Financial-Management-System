@@ -76,6 +76,7 @@
     <x-stat-card 
       title="Total Requisitions" 
       :value="$totalRequests ?? 0" 
+      :isCurrency="false"
       icon="ph-file-text" 
       color="slate" 
       subtitle="Cumulative disbursement vouchers"

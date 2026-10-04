@@ -34,17 +34,38 @@
           document.documentElement.classList.remove('dark');
         }
 
+        // Smooth theme applier orchestration
+        function applyThemeMorph(isDark, themeName) {
+          const updateDom = function() {
+            if (isDark) {
+              document.documentElement.classList.add('dark');
+            } else {
+              document.documentElement.classList.remove('dark');
+            }
+            window.dispatchEvent(new CustomEvent('theme-applied', { detail: { theme: themeName, isDark: isDark } }));
+          };
+
+          const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          if (!prefersReducedMotion && typeof document.startViewTransition === 'function') {
+            try {
+              document.startViewTransition(updateDom);
+              return;
+            } catch (e) {}
+          }
+
+          document.documentElement.classList.add('theme-transitioning');
+          updateDom();
+          setTimeout(function() {
+            document.documentElement.classList.remove('theme-transitioning');
+          }, 340);
+        }
+
         // Live system OS listener
         if (window.matchMedia) {
           window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
             const currentMode = localStorage.getItem('fms_theme') || 'system';
             if (currentMode === 'system') {
-              if (e.matches) {
-                document.documentElement.classList.add('dark');
-              } else {
-                document.documentElement.classList.remove('dark');
-              }
-              window.dispatchEvent(new CustomEvent('theme-applied', { detail: { isDark: e.matches, theme: 'system' } }));
+              applyThemeMorph(e.matches, 'system');
             }
           });
         }
@@ -54,12 +75,7 @@
           localStorage.setItem('himsMainTheme', theme);
           const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
           const isDark = theme === 'dark' || (theme === 'system' && prefersDark);
-          if (isDark) {
-            document.documentElement.classList.add('dark');
-          } else {
-            document.documentElement.classList.remove('dark');
-          }
-          window.dispatchEvent(new CustomEvent('theme-applied', { detail: { theme: theme, isDark: isDark } }));
+          applyThemeMorph(isDark, theme);
         };
 
         // Instant sidebar collapsed state check to prevent layout shift

@@ -16,22 +16,6 @@
 
     <div class="flex items-center gap-2.5 flex-wrap">
       <a 
-        href="{{ route('ap.invoices.export', request()->query()) }}" 
-        class="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 transition-all"
-        title="Download CSV register of all supplier invoices"
-      >
-        <i class="ph-bold ph-download-simple"></i>
-        <span>Export AP Register (CSV)</span>
-      </a>
-      <a 
-        href="{{ route('ap.invoices.batch-2307', request()->query()) }}" 
-        class="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 px-3.5 py-2 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-600/20 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 transition-all"
-        title="Generate batch certificates of withholding tax"
-      >
-        <i class="ph-bold ph-file-text"></i>
-        <span>Generate BIR 2307 Batch</span>
-      </a>
-      <a 
         href="{{ route('ap.purchase-bills') }}" 
         class="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 ring-1 ring-emerald-600/20 transition-all"
       >
@@ -57,6 +41,20 @@
         <i class="ph-bold ph-warning-circle text-lg text-rose-600"></i>
         <span>{{ session('error') }}</span>
       </div>
+    </div>
+  @endif
+
+  @if($errors->any())
+    <div class="rounded-xl bg-rose-50 p-4 text-xs font-semibold text-rose-800 ring-1 ring-rose-600/20 dark:bg-rose-950/40 dark:text-rose-300">
+      <div class="flex items-center gap-2 mb-2 font-bold text-rose-700 dark:text-rose-300">
+        <i class="ph-bold ph-warning-circle text-lg text-rose-600"></i>
+        <span>Please check the voucher requirements:</span>
+      </div>
+      <ul class="list-disc list-inside space-y-1 pl-1">
+        @foreach($errors->all() as $error)
+          <li>{{ $error }}</li>
+        @endforeach
+      </ul>
     </div>
   @endif
 
@@ -192,6 +190,9 @@
               $ewt = (float) ($inv->tax_withheld ?? 0);
               $net = (float) ($inv->net_payable ?? ($gross - $ewt));
               $matchStatus = strtoupper((string) ($inv->match_status ?? 'MATCHED'));
+
+              $committedVouchers = (float) $inv->disbursementVouchers->whereIn('status', ['DRAFT', 'AUDITED', 'APPROVED', 'RELEASED'])->sum('net_disbursed_amount');
+              $uncommittedBalance = max(0, (float) $inv->total_amount - $committedVouchers);
             @endphp
             <tr class="transition-colors hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
               <td class="py-3.5 pl-5 pr-3">
@@ -249,18 +250,32 @@
               <td class="py-3.5 pl-3 pr-5 text-right">
                 <div class="flex items-center justify-end gap-1.5">
                   @if($inv->status === 'UNPAID' || $inv->status === 'APPROVED')
-                    <form action="{{ route('ap.invoices.prepare-voucher') }}" method="POST" class="inline">
-                      @csrf
-                      <input type="hidden" name="purchase_bill_id" value="{{ $inv->id }}">
+                    @if($uncommittedBalance > 0.001)
                       <button 
-                        type="submit" 
-                        class="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition-all"
+                        type="button" 
+                        @click="$dispatch('open-modal', {
+                          id: 'prepareVoucherModal',
+                          billId: {{ $inv->id }},
+                          billNumber: '{{ $inv->bill_number }}',
+                          vendorName: '{{ addslashes($inv->vendor?->name ?? 'Vendor') }}',
+                          amount: '{{ number_format($uncommittedBalance, 2, '.', '') }}'
+                        })"
+                        class="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition-all cursor-pointer"
                         title="Prepare Disbursement Voucher"
                       >
                         <i class="ph-bold ph-file-plus"></i>
                         <span>Voucher</span>
                       </button>
-                    </form>
+                    @else
+                      <a 
+                        href="{{ route('ap.payment-approvals.index') }}" 
+                        class="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-600/20 hover:bg-blue-100 transition-all dark:bg-blue-950/40 dark:text-blue-300"
+                        title="Voucher already generated. Authorize and release in Payment Approvals Hub"
+                      >
+                        <i class="ph-bold ph-arrow-square-out"></i>
+                        <span>In Approvals</span>
+                      </a>
+                    @endif
                   @endif
                   @if($inv->status === 'UNPAID')
                     <form action="{{ route('ap.invoices.quick-approve', $inv->id) }}" method="POST" class="inline">
@@ -295,4 +310,101 @@
     </div>
   </div>
 </div>
+
+<!-- Modal: Prepare Disbursement Voucher -->
+<x-modal 
+  id="prepareVoucherModal" 
+  title="Prepare Disbursement Voucher" 
+  subtitle="Authorize bank disbursement and route to AP Payment Approvals" 
+  icon="ph-receipt" 
+  iconVariant="emerald" 
+  size="xl" 
+  formAction="{{ route('ap.invoices.prepare-voucher') }}" 
+  formMethod="POST" 
+  submitText="Generate Disbursement Voucher"
+  submitIcon="ph-check"
+>
+  <div 
+    x-data="{
+      billId: '',
+      billNumber: '',
+      vendorName: '',
+      amount: '0.00',
+      initVoucher(data) {
+        if (!data) return;
+        this.billId = data.billId || '';
+        this.billNumber = data.billNumber || '';
+        this.vendorName = data.vendorName || '';
+        this.amount = data.amount || '0.00';
+      }
+    }"
+    @open-modal.window="if ($event.detail.id === 'prepareVoucherModal') { initVoucher($event.detail); }"
+    class="space-y-4"
+  >
+    <input type="hidden" name="purchase_bill_id" :value="billId">
+
+    <!-- Bill Summary Card -->
+    <div class="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-slate-800/60 dark:ring-slate-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 font-mono text-xs">
+      <div>
+        <span class="text-[10px] text-slate-400 font-sans uppercase tracking-wider block">Target Procurement Bill</span>
+        <strong class="text-sm font-bold text-slate-900 dark:text-white" x-text="billNumber"></strong>
+        <div class="text-xs text-slate-500 font-sans" x-text="vendorName"></div>
+      </div>
+      <div class="sm:text-right">
+        <span class="text-[10px] text-slate-400 font-sans uppercase tracking-wider block">Disbursement Amount</span>
+        <strong class="text-base font-bold text-emerald-600 dark:text-emerald-400" x-text="'₱' + Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></strong>
+      </div>
+    </div>
+
+    <!-- Settlement Details Form -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+          Settlement Bank Account <span class="text-rose-500">*</span>
+        </label>
+        <select name="bank_account_id" required class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs font-semibold text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
+          @foreach($bankAccounts as $bank)
+            <option value="{{ $bank->id }}" {{ $loop->first ? 'selected' : '' }}>
+              {{ $bank->bank_name ?: $bank->name }} ({{ $bank->account_number }})
+            </option>
+          @endforeach
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+          Payment Method <span class="text-rose-500">*</span>
+        </label>
+        <select name="payment_method" required class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs font-semibold text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
+          <option value="PESONET_EFT" selected>PESONet EFT (Direct Bank Transfer)</option>
+          <option value="CHECK">Commercial Bank Check</option>
+          <option value="INSTAPAY">InstaPay Real-Time Settlement</option>
+          <option value="TELEGRAPHIC_TRANSFER">Telegraphic Wire Transfer</option>
+          <option value="PETTY_CASH">Petty Cash Voucher</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+          Voucher Date <span class="text-rose-500">*</span>
+        </label>
+        <input type="date" name="voucher_date" value="{{ date('Y-m-d') }}" required class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+          Disbursement Amount (₱) <span class="text-rose-500">*</span>
+        </label>
+        <input type="number" step="0.01" min="0.01" name="amount" x-model="amount" required class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs font-mono text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
+      </div>
+
+      <div class="sm:col-span-2">
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+          Check / EFT Batch Reference (Optional)
+        </label>
+        <input type="text" name="check_or_eft_ref" placeholder="e.g. EFT-BATCH-202610-01 or Check #440192" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs font-mono text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
+      </div>
+    </div>
+  </div>
+</x-modal>
 @endsection

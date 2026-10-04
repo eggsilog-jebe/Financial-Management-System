@@ -146,7 +146,20 @@
               </td>
               <td class="px-3 py-3.5">
                 <div class="font-semibold text-slate-900 dark:text-white text-xs sm:text-sm">{{ $acc->full_name }}</div>
-                <div class="text-[11px] text-slate-400 font-mono">{{ $acc->contact_number ?: 'No contact number' }}</div>
+                <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono flex items-center gap-2 mt-0.5">
+                  @if($acc->phone || $acc->contact_number)
+                    <span><i class="ph ph-phone text-slate-400"></i> {{ $acc->phone ?: $acc->contact_number }}</span>
+                  @endif
+                  @if($acc->email)
+                    <span class="truncate max-w-[140px]"><i class="ph ph-envelope text-slate-400"></i> {{ $acc->email }}</span>
+                  @endif
+                </div>
+                @if($acc->address)
+                  <div class="text-[10px] text-slate-400 dark:text-slate-500 truncate max-w-xs mt-0.5 flex items-center gap-1" title="{{ $acc->address }}">
+                    <i class="ph ph-map-pin text-slate-400 flex-shrink-0"></i>
+                    <span class="truncate">{{ $acc->address }}</span>
+                  </div>
+                @endif
               </td>
               <td class="px-3 py-3.5 text-xs">
                 <span class="inline-flex items-center px-2 py-0.5 rounded-full font-semibold {{ $admissionUpper === 'INPATIENT' ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-600/20 dark:bg-blue-950/40 dark:text-blue-300' : ($admissionUpper === 'EMERGENCY' ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-600/20 dark:bg-rose-950/40 dark:text-rose-300' : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20 dark:bg-emerald-950/40 dark:text-emerald-300') }}">
@@ -278,7 +291,15 @@
         </div>
         <div class="sm:col-span-4">
           <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Contact Phone</label>
-          <input type="text" name="contact_number" placeholder="+63 900 000 0000" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
+          <input type="text" name="phone" placeholder="+63 900 000 0000" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
+        </div>
+        <div class="sm:col-span-4">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Email Address</label>
+          <input type="email" name="email" placeholder="patient@example.com" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
+        </div>
+        <div class="sm:col-span-8">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Residential / Billing Address</label>
+          <input type="text" name="address" placeholder="Unit, Street, Barangay, City / Municipality, Province" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
         </div>
       </div>
     </div>

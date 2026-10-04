@@ -52,16 +52,20 @@ final class InvoiceBillingService
                 if ($isSeniorOrPwd && $isEligible) {
                     // RA 9994 / RA 10754: 12% VAT exemption followed by 20% discount
                     if ($isVatable) {
-                        $netOfVat = bcdiv($itemGross, '1.1200', 4);
+                        $rawNet = bcdiv($itemGross, '1.1200', 4);
+                        $netOfVat = number_format(round((float) $rawNet, 2), 4, '.', '');
                         $vatRelief = bcsub($itemGross, $netOfVat, 4);
                         $vatReliefTotal = bcadd($vatReliefTotal, $vatRelief, 4);
-                        $discount = bcmul($netOfVat, '0.2000', 4);
+                        $rawDiscount = bcmul($netOfVat, '0.2000', 4);
+                        $discount = number_format(round((float) $rawDiscount, 2), 4, '.', '');
                     } else {
-                        $discount = bcmul($itemGross, '0.2000', 4);
+                        $rawDiscount = bcmul($itemGross, '0.2000', 4);
+                        $discount = number_format(round((float) $rawDiscount, 2), 4, '.', '');
                     }
                     $discountTotal = bcadd($discountTotal, $discount, 4);
                 } elseif (in_array($data->discountType, ['EMPLOYEE', 'EMPLOYEE_SUBSIDY', 'CHARITY'], true) && $isEligible) {
-                    $discount = bcmul($itemGross, '0.2000', 4);
+                    $rawDiscount = bcmul($itemGross, '0.2000', 4);
+                    $discount = number_format(round((float) $rawDiscount, 2), 4, '.', '');
                     $discountTotal = bcadd($discountTotal, $discount, 4);
                 }
 
@@ -88,14 +92,16 @@ final class InvoiceBillingService
             $amountAfterPhilhealth = bcsub($amountAfterDiscount, $philhealthDeduction, 4);
 
             // 3. Private HMO Coverage Deduction
+            $hmoProvider = $data->hmoProvider ?: $patient->hmo_provider;
             $hmoDeduction = '0.0000';
-            if ($data->hmoProvider !== null && bccomp($data->hmoApprovedLimit, '0.0000', 4) > 0) {
+            if (! empty($hmoProvider) && bccomp($data->hmoApprovedLimit, '0.0000', 4) > 0) {
                 $hmoDeduction = bccomp($amountAfterPhilhealth, $data->hmoApprovedLimit, 4) >= 0
                     ? $data->hmoApprovedLimit
                     : $amountAfterPhilhealth;
             }
 
-            $patientPayable = bcsub($amountAfterPhilhealth, $hmoDeduction, 4);
+            $rawPatientPayable = bcsub($amountAfterPhilhealth, $hmoDeduction, 4);
+            $patientPayable = number_format(round((float) $rawPatientPayable, 2), 4, '.', '');
             $insuranceCovered = bcadd($philhealthDeduction, $hmoDeduction, 4);
 
             // 4. Create Master Invoice
@@ -169,11 +175,11 @@ final class InvoiceBillingService
             }
 
             // 8. Record HMO Claim
-            if (bccomp($hmoDeduction, '0.0000', 4) > 0 && $data->hmoProvider !== null) {
+            if (bccomp($hmoDeduction, '0.0000', 4) > 0 && ! empty($hmoProvider)) {
                 HmoClaim::create([
                     'invoice_id'      => $invoice->id,
-                    'hmo_provider'    => $data->hmoProvider,
-                    'loa_number'      => $data->hmoLoaNumber,
+                    'hmo_provider'    => $hmoProvider,
+                    'loa_number'      => $data->hmoLoaNumber ?? ('LOA-' . strtoupper(substr(uniqid(), -6))),
                     'card_number'     => $data->hmoCardNumber,
                     'approved_limit'  => $data->hmoApprovedLimit,
                     'claimed_amount'  => $hmoDeduction,
@@ -190,7 +196,7 @@ final class InvoiceBillingService
 
             // 10. Post Double-Entry Journal to General Ledger
             $invoice->load('items');
-            $this->postRevenueDoubleEntry($invoice, $data->invoiceDate, $data->hmoProvider, $grossTotal, $patientPayable, $philhealthDeduction, $hmoDeduction, $totalSeniorPwdDeduction);
+            $this->postRevenueDoubleEntry($invoice, $data->invoiceDate, $hmoProvider, $grossTotal, $patientPayable, $philhealthDeduction, $hmoDeduction, $totalSeniorPwdDeduction);
 
             // CAS Audit Trail
             $this->auditTrailService->logFinancialEvent(
@@ -309,27 +315,28 @@ final class InvoiceBillingService
             foreach ($items as $item) {
                 $deptKey = strtoupper((string) ($item->department ?: 'ROOM_AND_BOARD'));
                 $mapping = $deptMap[$deptKey] ?? ['code' => '4010', 'name' => 'Hospital Inpatient & Clinical Revenue'];
-                $code = $mapping['code'];
-                $name = $mapping['name'];
+                $code = (string) $mapping['code'];
+                $name = (string) $mapping['name'];
 
                 $itemSubtotal = (string) ($item->subtotal ?: bcmul((string) ($item->quantity ?? 1), (string) ($item->unit_price ?? 0), 4));
 
-                if (! isset($deptTotals[$code])) {
-                    $deptTotals[$code] = ['name' => $name, 'total' => '0.0000'];
+                $key = 'CODE_' . $code;
+                if (! isset($deptTotals[$key])) {
+                    $deptTotals[$key] = ['code' => $code, 'name' => $name, 'total' => '0.0000'];
                 }
-                $deptTotals[$code]['total'] = bcadd($deptTotals[$code]['total'], $itemSubtotal, 4);
+                $deptTotals[$key]['total'] = bcadd($deptTotals[$key]['total'], $itemSubtotal, 4);
             }
 
             $creditedRevenue = '0.0000';
-            $deptCodes = array_keys($deptTotals);
-            $lastCode = end($deptCodes);
+            $deptKeys = array_keys($deptTotals);
+            $lastKey = end($deptKeys);
 
-            foreach ($deptTotals as $code => $info) {
+            foreach ($deptTotals as $key => $info) {
                 if (bccomp($info['total'], '0.0000', 4) <= 0) {
                     continue;
                 }
 
-                if ($code === $lastCode) {
+                if ($key === $lastKey) {
                     $deptCredit = bcsub($netHospitalRevenue, $creditedRevenue, 4);
                 } else {
                     $ratio = bcdiv($info['total'], $grossTotal, 6);
@@ -339,8 +346,8 @@ final class InvoiceBillingService
 
                 if (bccomp($deptCredit, '0.0000', 4) > 0) {
                     $deptRevenueAcc = Account::firstOrCreate(
-                        ['code' => $code],
-                        ['name' => $info['name'], 'category' => 'REVENUE', 'normal_balance' => 'CREDIT']
+                        ['code' => (string) $info['code']],
+                        ['name' => (string) $info['name'], 'category' => 'REVENUE', 'normal_balance' => 'CREDIT']
                     );
 
                     $journalLines[] = new JournalLineData(

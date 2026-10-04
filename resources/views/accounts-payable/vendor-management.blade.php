@@ -45,6 +45,20 @@
     </div>
   @endif
 
+  @if($errors->any())
+    <div class="rounded-xl bg-rose-50 p-4 text-xs font-semibold text-rose-800 ring-1 ring-rose-600/20 dark:bg-rose-950/40 dark:text-rose-300">
+      <div class="flex items-center gap-2 mb-2 font-bold text-rose-700 dark:text-rose-300">
+        <i class="ph-bold ph-warning-circle text-lg text-rose-600"></i>
+        <span>Please correct the errors below before saving:</span>
+      </div>
+      <ul class="list-disc list-inside space-y-1 pl-1">
+        @foreach($errors->all() as $error)
+          <li>{{ $error }}</li>
+        @endforeach
+      </ul>
+    </div>
+  @endif
+
   <!-- Summary Cards Row -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
     <x-stat-card 
@@ -281,19 +295,19 @@
       <div class="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
         <div class="sm:col-span-4">
           <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Vendor Code</label>
-          <input type="text" name="code" placeholder="Auto-generated (e.g. VND-0024)" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs font-mono text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
+          <input type="text" name="code" value="{{ old('code') }}" placeholder="Auto-generated (e.g. VND-0024)" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs font-mono text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
         </div>
         <div class="sm:col-span-8">
           <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Supplier Legal Name <span class="text-rose-500">*</span></label>
-          <input type="text" name="name" placeholder="e.g. Metro Pharma Medical Supplies Inc." required class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
+          <input type="text" name="name" value="{{ old('name') }}" placeholder="e.g. Metro Pharma Medical Supplies Inc." required class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
         </div>
         <div class="sm:col-span-8">
           <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Registered Business Address</label>
-          <input type="text" name="registered_address" placeholder="Physical business address / office location" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
+          <input type="text" name="registered_address" value="{{ old('registered_address') }}" placeholder="Physical business address / office location" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
         </div>
         <div class="sm:col-span-4">
           <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Credit Payment Terms</label>
-          <input type="text" name="payment_terms" placeholder="e.g. Net 30 Days" value="Net 30" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
+          <input type="text" name="payment_terms" value="{{ old('payment_terms', 'Net 30') }}" placeholder="e.g. Net 30 Days" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
         </div>
       </div>
     </div>
@@ -307,15 +321,15 @@
       <div class="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
         <div class="sm:col-span-4">
           <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Settlement Bank Name</label>
-          <input type="text" name="bank_name" placeholder="e.g. BDO, BPI, Landbank" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
+          <input type="text" name="bank_name" value="{{ old('bank_name') }}" placeholder="e.g. BDO, BPI, Landbank" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
         </div>
         <div class="sm:col-span-4">
           <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Account Number</label>
-          <input type="text" name="bank_account_number" placeholder="e.g. 0012-3456-7890" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs font-mono text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
+          <input type="text" name="bank_account_number" value="{{ old('bank_account_number') }}" placeholder="e.g. 0012-3456-7890" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs font-mono text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
         </div>
         <div class="sm:col-span-4">
           <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Account Holder Name</label>
-          <input type="text" name="bank_account_name" placeholder="e.g. Metro Pharma Med Inc." class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
+          <input type="text" name="bank_account_name" value="{{ old('bank_account_name') }}" placeholder="e.g. Metro Pharma Med Inc." class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
         </div>
       </div>
     </div>
@@ -329,20 +343,28 @@
       <div class="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
         <div class="sm:col-span-4">
           <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Contact Person</label>
-          <input type="text" name="contact_person" placeholder="e.g. Maria Santos" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
+          <input type="text" name="contact_person" value="{{ old('contact_person') }}" placeholder="e.g. Maria Santos" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
         </div>
         <div class="sm:col-span-4">
           <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Phone Number</label>
-          <input type="text" name="phone" placeholder="e.g. +63 (02) 8842-1090" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
+          <input type="text" name="phone" value="{{ old('phone') }}" placeholder="e.g. +63 (02) 8842-1090" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
         </div>
         <div class="sm:col-span-4">
           <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Email Address</label>
-          <input type="email" name="email" placeholder="e.g. billing@supplier.ph" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
+          <input type="email" name="email" value="{{ old('email') }}" placeholder="e.g. billing@supplier.ph" class="w-full rounded-xl border-0 bg-white py-2 px-3 text-xs text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-emerald-600 dark:bg-slate-800 dark:text-white dark:ring-slate-600">
         </div>
       </div>
     </div>
   </div>
 </x-modal>
+
+@if($errors->any())
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    window.dispatchEvent(new CustomEvent('open-modal', { detail: 'addVendorModal' }));
+  });
+</script>
+@endif
 
 <!-- Modal: Edit Vendor Master (Alpine.js) -->
 <x-modal 

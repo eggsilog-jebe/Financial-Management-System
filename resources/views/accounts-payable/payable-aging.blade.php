@@ -203,7 +203,7 @@
               </td>
               <td class="py-3.5 pl-3 pr-5 text-right font-sans">
                 <a 
-                  href="{{ route('ap.invoices', ['search' => $item['vendor_code']]) }}" 
+                  href="{{ route('ap.invoices', ['vendor_id' => $item['vendor_id']]) }}" 
                   class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors"
                   title="View Breakdown"
                 >

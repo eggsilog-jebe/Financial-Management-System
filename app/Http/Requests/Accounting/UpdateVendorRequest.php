@@ -14,6 +14,31 @@ final class UpdateVendorRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $paymentTerms = $this->input('payment_terms') ?? $this->input('payment_terms_days');
+        if (is_string($paymentTerms)) {
+            preg_match('/\d+/', $paymentTerms, $matches);
+            $days = ! empty($matches) ? (int) $matches[0] : 30;
+            $this->merge([
+                'payment_terms' => $days,
+                'payment_terms_days' => $days,
+            ]);
+        } elseif (is_numeric($paymentTerms)) {
+            $this->merge([
+                'payment_terms' => (int) $paymentTerms,
+                'payment_terms_days' => (int) $paymentTerms,
+            ]);
+        }
+
+        if ($this->has('code') && trim((string) $this->input('code')) === '') {
+            $this->merge(['code' => null]);
+        }
+        if ($this->has('vendor_code') && trim((string) $this->input('vendor_code')) === '') {
+            $this->merge(['vendor_code' => null]);
+        }
+    }
+
     public function rules(): array
     {
         $vendorId = $this->route('vendor') ?? $this->route('id');

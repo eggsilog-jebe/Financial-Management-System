@@ -82,6 +82,18 @@ final class PatientAccount extends Model
         }
     }
 
+    public function getContactNumberAttribute(): ?string
+    {
+        return $this->attributes['phone'] ?? null;
+    }
+
+    public function setContactNumberAttribute(?string $value): void
+    {
+        if ($value !== null) {
+            $this->attributes['phone'] = trim($value);
+        }
+    }
+
     public function getEffectiveDiscountCategoryAttribute(): string
     {
         $profileDiscount = strtoupper((string) ($this->discount_category ?? 'NONE'));

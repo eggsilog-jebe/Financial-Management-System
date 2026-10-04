@@ -493,14 +493,19 @@
           }
         }
       " 
-      class="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white transition-colors"
+      class="group relative inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white transition-all overflow-hidden cursor-pointer"
       :title="darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
       :aria-label="darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+      id="btn-theme-toggle"
     >
-      {{-- In Light Mode: Show Moon icon to switch to Dark Mode --}}
-      <i class="ph-bold ph-moon text-lg block dark:hidden" aria-hidden="true"></i>
-      {{-- In Dark Mode: Show Sun icon to switch to Light Mode --}}
-      <i class="ph-bold ph-sun text-lg hidden dark:block" aria-hidden="true"></i>
+      {{-- Moon Icon (Visible in Light Mode, morphs out in Dark Mode) --}}
+      <span class="inline-flex items-center justify-center transition-all duration-300 transform dark:-rotate-90 dark:scale-0 dark:opacity-0 rotate-0 scale-100 opacity-100">
+        <i class="ph-bold ph-moon text-lg text-slate-600 group-hover:text-slate-900" aria-hidden="true"></i>
+      </span>
+      {{-- Sun Icon (Visible in Dark Mode, morphs in from 90deg) --}}
+      <span class="absolute inline-flex items-center justify-center transition-all duration-300 transform rotate-90 scale-0 opacity-0 dark:rotate-0 dark:scale-100 dark:opacity-100">
+        <i class="ph-bold ph-sun text-lg text-amber-400 group-hover:text-amber-300" aria-hidden="true"></i>
+      </span>
     </button>
 
     <!-- Executive User Profile Menu (Alpine.js) -->

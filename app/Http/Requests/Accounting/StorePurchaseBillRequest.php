@@ -28,7 +28,7 @@ final class StorePurchaseBillRequest extends FormRequest
             'items'                 => ['required', 'array', 'min:1'],
             'items.*.item_code'     => ['nullable', 'string', 'max:50'],
             'items.*.description'   => ['required', 'string', 'max:255'],
-            'items.*.expense_type'  => ['nullable', 'string', 'in:GOODS_INVENTORY,SERVICES_MAINTENANCE,DOCTOR_PROFESSIONAL_FEE,CAPEX_EQUIPMENT,UTILITIES'],
+            'items.*.expense_type'  => ['nullable', 'string', 'in:GOODS_INVENTORY,SERVICES_MAINTENANCE,DOCTOR_PROFESSIONAL_FEE,CAPEX_EQUIPMENT,UTILITIES,SPACE_RENTAL,EXEMPT'],
             'items.*.quantity'      => ['required', 'numeric', 'gt:0'],
             'items.*.unit_price'    => ['required', 'numeric', 'min:0'],
             'items.*.atc_code'      => ['nullable', 'string', 'max:20'],
