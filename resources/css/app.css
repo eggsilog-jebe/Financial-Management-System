@@ -294,4 +294,24 @@ html.theme-transitioning *::after {
     }
 }
 
+/* Executive Navigation Loading Modal Animation */
+@keyframes fmsLoaderBar {
+    0% {
+        transform: translateX(-100%);
+        width: 35%;
+    }
+    50% {
+        transform: translateX(60%);
+        width: 60%;
+    }
+    100% {
+        transform: translateX(200%);
+        width: 35%;
+    }
+}
+
+.fms-loader-indeterminate-bar {
+    animation: fmsLoaderBar 1.25s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 

@@ -1,21 +1,23 @@
 /**
  * idle-monitor.js — Hospital FMS Idle Session Timeout Controller
  *
- * Tracks user activity and enforces a 15-minute idle timeout.
- * - At T-2 minutes: shows a warning countdown modal
+ * Tracks user activity and enforces a 3-minute (180s) idle timeout.
+ * - At T-60s remaining: triggers warning countdown modal (60s countdown)
  * - At T-0: submits a logout POST to invalidate the server session
- * - On activity: pings /session/heartbeat (max once per 60s) to keep server session alive
+ * - On active user interaction: pings /session/heartbeat (with touch: true, max once per 30s)
+ * - Periodic background check: every 10s checks displacement and syncs remaining seconds (with touch: false)
+ * - Stay Logged In button: immediately pings /session/heartbeat with touch: true and resets 3-minute timer
  *
- * The server-side IdleSessionTimeout middleware is the hard enforcement mechanism.
- * This JS provides the graceful UX layer on top.
+ * Server-side IdleSessionTimeout middleware is the hard enforcement mechanism (180s).
  */
 (function () {
   'use strict';
 
   // ── Configuration ──────────────────────────────────────────────────────────
-  const IDLE_TIMEOUT_MS   = 8 * 60 * 60 * 1000; // 8 hours (standard shift)
-  const WARNING_BEFORE_MS = 5 * 60 * 1000;      // warn 5 minutes before expiry
-  const HEARTBEAT_INTERVAL_MS = 60 * 1000;      // max one server ping per 60s
+  const IDLE_TIMEOUT_MS            = 3 * 60 * 1000; // 3 minutes = 180,000 ms
+  const WARNING_BEFORE_MS          = 60 * 1000;     // 60 seconds warning before expiry
+  const ACTIVITY_TOUCH_INTERVAL_MS = 30 * 1000;     // Send touch ping at most once per 30s during continuous activity
+  const STATUS_SYNC_INTERVAL_MS    = 10 * 1000;     // Check displacement/sync passively every 10s
 
   // Read CSRF token from meta tag
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
@@ -24,29 +26,36 @@
   let idleTimer      = null;
   let warningTimer   = null;
   let countdownTimer = null;
-  let lastHeartbeat  = 0;
+  let lastTouchPing  = 0;
   let warningShown   = false;
+  let isLoggingOut   = false;
 
-  // ── DOM References (injected by app.blade.php) ─────────────────────────────
-  const modal         = document.getElementById('idleTimeoutModal');
-  const countdownEl   = document.getElementById('idle-countdown-seconds');
-  const stayBtn       = document.getElementById('idle-stay-logged-in');
-  const logoutBtn     = document.getElementById('idle-logout-now');
-  const logoutForm    = document.getElementById('idle-logout-form');
+  // ── DOM References (injected by layouts/app.blade.php) ───────────────────────
+  const modal       = document.getElementById('idleTimeoutModal');
+  const countdownEl = document.getElementById('idle-countdown-seconds');
+  const stayBtn     = document.getElementById('idle-stay-logged-in');
+  const logoutBtn   = document.getElementById('idle-logout-now');
+  const logoutForm  = document.getElementById('idle-logout-form');
 
-  if (! modal) return; // Guard: only run on authenticated pages
-
-  // Bootstrap modal instance
-  const bsModal = window.bootstrap ? bootstrap.Modal.getOrCreateInstance(modal, { backdrop: 'static', keyboard: false }) : null;
+  if (! modal) return; // Guard: only execute on authenticated pages containing the modal
 
   // ── Heartbeat & Displacement Detection ──────────────────────────────────────
-  function sendHeartbeat(force = false) {
-    const now = Date.now();
-    if (!force && (now - lastHeartbeat < HEARTBEAT_INTERVAL_MS)) return;
-    lastHeartbeat = now;
+  function sendHeartbeat(options = {}) {
+    const isTouch = Boolean(options.touch);
+    const force   = Boolean(options.force);
+    const now     = Date.now();
+
+    // Throttle user-activity touches to at most once per ACTIVITY_TOUCH_INTERVAL_MS unless forced
+    if (isTouch && !force && (now - lastTouchPing < ACTIVITY_TOUCH_INTERVAL_MS)) {
+      return;
+    }
+
+    if (isTouch) {
+      lastTouchPing = now;
+    }
 
     fetch('/session/heartbeat', {
-      method:  'POST',
+      method: 'POST',
       headers: {
         'Content-Type':     'application/json',
         'X-CSRF-TOKEN':     csrfToken,
@@ -54,40 +63,73 @@
         'Accept':           'application/json',
       },
       credentials: 'same-origin',
-    }).then(response => {
-      // If displaced by another concurrent login or terminated by admin, immediately redirect to login
-      if (response.status === 401) {
-        return response.json().then(data => {
-          window.location.href = data.redirect_url || '/login?displaced=1';
-        }).catch(() => {
-          window.location.href = '/login?displaced=1';
-        });
-      }
-    }).catch(() => {
-      // Silently swallow network errors — server-side guard will handle expiry
-    });
+      body: JSON.stringify({
+        touch: isTouch,
+      }),
+    })
+      .then(response => {
+        if (response.status === 401) {
+          // Displaced by concurrent login or session expired on server
+          return response.json().then(data => {
+            window.location.href = data.redirect_url || '/login?expired=1';
+          }).catch(() => {
+            window.location.href = '/login?expired=1';
+          });
+        }
+
+        if (response.ok) {
+          return response.json().then(data => {
+            handleServerSync(data);
+          });
+        }
+      })
+      .catch(() => {
+        // Silently swallow network dropouts — client timers and server middleware will enforce expiry
+      });
   }
 
-  // Periodic displacement check every 8 seconds (kicks previous session out in real-time)
+  // Handle server sync response (supports multi-tab synchronization)
+  function handleServerSync(data) {
+    if (!data || typeof data.remaining !== 'number') return;
+
+    const remainingSec = data.remaining;
+
+    // If server says we have <= 60 seconds remaining and modal not shown, display warning
+    if (remainingSec <= 60 && !warningShown) {
+      showWarningModal(remainingSec);
+    } else if (remainingSec > 60 && warningShown) {
+      // User performed an action in another tab! Dismiss warning modal and sync local timer
+      hideWarningModal();
+      resetIdleTimer(remainingSec * 1000);
+    }
+  }
+
+  // Periodic passive check every 10 seconds (detects displacement & multi-tab state without resetting activity)
   setInterval(() => {
-    sendHeartbeat(true);
-  }, 8000);
+    if (!isLoggingOut) {
+      sendHeartbeat({ touch: false });
+    }
+  }, STATUS_SYNC_INTERVAL_MS);
 
   // ── Countdown Display ──────────────────────────────────────────────────────
   function startCountdown(durationSeconds) {
-    let remaining = durationSeconds;
+    stopCountdown();
+    let remaining = Math.max(0, Math.round(durationSeconds));
 
-    const update = () => {
-      if (countdownEl) countdownEl.textContent = String(remaining);
+    const updateDisplay = () => {
+      if (countdownEl) {
+        countdownEl.textContent = String(remaining);
+      }
     };
 
-    update();
+    updateDisplay();
+
     countdownTimer = setInterval(() => {
       remaining -= 1;
-      update();
+      updateDisplay();
 
       if (remaining <= 0) {
-        clearInterval(countdownTimer);
+        stopCountdown();
         forceLogout();
       }
     }, 1000);
@@ -101,60 +143,87 @@
   }
 
   // ── Warning Modal ──────────────────────────────────────────────────────────
-  function showWarningModal() {
+  function showWarningModal(secondsLeft = 60) {
     if (warningShown) return;
     warningShown = true;
 
-    if (bsModal) bsModal.show();
-    startCountdown(WARNING_BEFORE_MS / 1000);
+    // Trigger Alpine.js reactive display
+    window.dispatchEvent(new CustomEvent('open-idle-modal'));
+
+    // Start 1-second interval countdown
+    startCountdown(secondsLeft);
   }
 
   function hideWarningModal() {
+    if (!warningShown) return;
     warningShown = false;
+
     stopCountdown();
-    if (bsModal) bsModal.hide();
+
+    // Trigger Alpine.js reactive hide
+    window.dispatchEvent(new CustomEvent('close-idle-modal'));
   }
 
   // ── Force Logout ───────────────────────────────────────────────────────────
   function forceLogout() {
+    if (isLoggingOut) return;
+    isLoggingOut = true;
+
     hideWarningModal();
+
     if (logoutForm) {
+      // Ensure hidden input reason=idle is present
+      let reasonInput = logoutForm.querySelector('input[name="reason"]');
+      if (!reasonInput) {
+        reasonInput = document.createElement('input');
+        reasonInput.type = 'hidden';
+        reasonInput.name = 'reason';
+        reasonInput.value = 'idle';
+        logoutForm.appendChild(reasonInput);
+      }
       logoutForm.submit();
     } else {
-      // Fallback: redirect to login
-      window.location.href = '/login';
+      window.location.href = '/logout?reason=idle';
     }
+
+    // Safety fallback if form submission hangs
+    setTimeout(() => {
+      window.location.href = '/login?session_expired=1';
+    }, 2500);
   }
 
   // ── Reset Idle Timer ───────────────────────────────────────────────────────
-  function resetIdleTimer() {
+  function resetIdleTimer(overrideDurationMs = null) {
     clearTimeout(idleTimer);
     clearTimeout(warningTimer);
 
-    // Only dismiss warning if user actively interacts (not just a timer reset)
-    if (warningShown) {
-      hideWarningModal();
-      sendHeartbeat();
-    }
+    const totalDuration = overrideDurationMs ?? IDLE_TIMEOUT_MS;
+    const warningDelay  = Math.max(0, totalDuration - WARNING_BEFORE_MS);
 
-    // Set warning timer (fires 2 min before expiry)
-    warningTimer = setTimeout(showWarningModal, IDLE_TIMEOUT_MS - WARNING_BEFORE_MS);
+    // Schedule warning modal (at 60s remaining)
+    warningTimer = setTimeout(() => {
+      showWarningModal(60);
+    }, warningDelay);
 
-    // Set hard logout timer (fires at expiry)
-    idleTimer = setTimeout(forceLogout, IDLE_TIMEOUT_MS);
+    // Schedule automatic logout at exact expiration
+    idleTimer = setTimeout(() => {
+      forceLogout();
+    }, totalDuration);
   }
 
   // ── Activity Event Listeners ───────────────────────────────────────────────
   const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll', 'click'];
-
-  // Debounce to avoid firing on every pixel of mouse movement
   let activityDebounce = null;
 
   function onActivity() {
+    // If warning modal is already shown, do NOT passively dismiss with mousemove —
+    // user must deliberately click "I'm Still Here"
+    if (warningShown) return;
+
     if (activityDebounce) return;
     activityDebounce = setTimeout(() => {
       activityDebounce = null;
-      sendHeartbeat();
+      sendHeartbeat({ touch: true });
       resetIdleTimer();
     }, 500);
   }
@@ -165,19 +234,27 @@
 
   // ── Stay Logged In Button ──────────────────────────────────────────────────
   if (stayBtn) {
-    stayBtn.addEventListener('click', () => {
-      sendHeartbeat();
+    stayBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      // Force immediate server session touch
+      sendHeartbeat({ touch: true, force: true });
       hideWarningModal();
       resetIdleTimer();
+
+      if (typeof window.showToast === 'function') {
+        window.showToast('Session renewed. Inactivity timer reset.', 'info');
+      }
     });
   }
 
   // ── Logout Now Button ──────────────────────────────────────────────────────
   if (logoutBtn) {
-    logoutBtn.addEventListener('click', forceLogout);
+    logoutBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      forceLogout();
+    });
   }
 
-  // ── Init ───────────────────────────────────────────────────────────────────
+  // ── Init on page load ──────────────────────────────────────────────────────
   resetIdleTimer();
-
 })();

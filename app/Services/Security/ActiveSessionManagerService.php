@@ -192,16 +192,16 @@ final class ActiveSessionManagerService
     }
 
     /**
-     * Terminate the session on explicit user logout.
+     * Terminate the session on explicit user logout or idle timeout.
      */
-    public function terminateCurrentSession(string $sessionId): void
+    public function terminateCurrentSession(string $sessionId, string $reason = UserActiveSession::REASON_MANUAL_LOGOUT): void
     {
-        Cache::put("session:terminated:{$sessionId}", UserActiveSession::REASON_MANUAL_LOGOUT, 3600);
+        Cache::put("session:terminated:{$sessionId}", $reason, 3600);
         $this->l1->forget("session:valid:{$sessionId}");
 
         $this->terminateSessions(
             UserActiveSession::where('session_id', $sessionId)->where('is_terminated', false)->get(),
-            UserActiveSession::REASON_MANUAL_LOGOUT
+            $reason
         );
     }
 

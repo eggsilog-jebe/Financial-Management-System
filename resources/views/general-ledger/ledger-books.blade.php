@@ -157,8 +157,6 @@
 
   <!-- Historical Running Ledger Table -->
   
-  <!-- Sub-Module Category Navigation Bar -->
-  @include('partials.submodule-nav')
 
   <div class="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/80 overflow-hidden dark:bg-slate-900 dark:ring-slate-800">
     <div class="border-b border-slate-200 px-5 py-4 dark:border-slate-800 flex items-center justify-between">

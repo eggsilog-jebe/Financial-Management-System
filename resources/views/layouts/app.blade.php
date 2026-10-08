@@ -102,7 +102,9 @@
       }
       html.sidebar-collapsed aside#fms-sidebar .sidebar-label,
       html.sidebar-collapsed aside#fms-sidebar .sidebar-indicator,
-      html.sidebar-collapsed aside#fms-sidebar .sidebar-brand-text {
+      html.sidebar-collapsed aside#fms-sidebar .sidebar-brand-text,
+      html.sidebar-collapsed aside#fms-sidebar .sidebar-submenu,
+      html.sidebar-collapsed aside#fms-sidebar .sidebar-caret {
         display: none !important;
       }
       html.sidebar-collapsed aside#fms-sidebar .sidebar-link {
@@ -169,21 +171,64 @@
       idleModalOpen: false
     }"
     @keydown.escape.window="systemModal.open = false"
+    @open-idle-modal.window="idleModalOpen = true"
+    @close-idle-modal.window="idleModalOpen = false"
     @theme-applied.window="darkMode = $event.detail.isDark"
     class="h-full bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-100 antialiased selection:bg-emerald-500 selection:text-white"
     data-module="@yield('module', 'main')" 
     data-page="@yield('page', 'dashboard')"
   >
-    <!-- Executive Top Loading Progress Bar -->
+    {{-- ── Global Navigation Loading Modal (Backdrop Blur + Executive Healthcare Card) ────── --}}
     <div 
-      id="fms-top-progress" 
-      class="fixed top-0 left-0 right-0 h-[2.5px] z-[9999] pointer-events-none transition-opacity duration-200 opacity-0"
-      aria-hidden="true"
+      id="fms-navigation-loader" 
+      class="fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-all duration-200 opacity-0 pointer-events-none invisible"
+      role="status" 
+      aria-live="polite" 
+      aria-label="Loading page content"
     >
+      <!-- Heavy Backdrop Blur Layer -->
       <div 
-        id="fms-top-progress-bar" 
-        class="h-full w-0 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-600 shadow-[0_0_10px_rgba(16,185,129,0.7)] transition-all duration-300 ease-out"
+        id="fms-loader-backdrop"
+        class="fixed inset-0 bg-slate-950/40 dark:bg-slate-950/70 backdrop-blur-md transition-opacity duration-200 opacity-0 pointer-events-auto"
       ></div>
+
+      <!-- Centered Pop-up Modal Card -->
+      <div 
+        id="fms-loader-card"
+        class="relative w-full max-w-sm transform scale-95 transition-all duration-200 opacity-0 overflow-hidden rounded-3xl bg-white/95 p-7 shadow-2xl ring-1 ring-slate-200/80 backdrop-blur-xl dark:bg-slate-900/95 dark:ring-slate-800 text-center pointer-events-auto select-none"
+      >
+        <!-- Luminous Emerald Ambient Radial Gradients -->
+        <div class="pointer-events-none absolute -top-12 -left-12 h-32 w-32 rounded-full bg-emerald-500/10 blur-2xl"></div>
+        <div class="pointer-events-none absolute -bottom-12 -right-12 h-32 w-32 rounded-full bg-teal-500/10 blur-2xl"></div>
+
+        <!-- Animated Radar Spinner & Hospital Cross Seal -->
+        <div class="relative mx-auto flex h-16 w-16 items-center justify-center">
+          <span class="absolute inset-0 rounded-2xl bg-emerald-500/20 animate-ping opacity-60"></span>
+          <div class="absolute inset-0 rounded-2xl border-[3px] border-emerald-500/20 border-t-emerald-600 dark:border-t-emerald-400 animate-spin"></div>
+          <div class="relative flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-md ring-1 ring-emerald-500/30">
+            <i class="ph-bold ph-hospital text-xl"></i>
+          </div>
+        </div>
+
+        <!-- Title & Subtitle Context -->
+        <div class="mt-4">
+          <h3 id="fms-loader-title" class="font-bold text-base text-slate-900 dark:text-white tracking-tight truncate px-2">
+            Loading Module...
+          </h3>
+          <p id="fms-loader-desc" class="mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium truncate px-2">
+            Preparing hospital ledger & clinical records
+          </p>
+        </div>
+
+        <!-- Indeterminate Progress Track -->
+        <div class="mt-5 w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+          <div class="fms-loader-indeterminate-bar h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-600 rounded-full"></div>
+        </div>
+
+        <p class="mt-3.5 text-[10.5px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+          Hospital Financial Management System
+        </p>
+      </div>
     </div>
 
     <div class="min-h-screen flex bg-slate-50 dark:bg-slate-950 transition-colors">
@@ -254,7 +299,7 @@
 
             <div class="my-5 flex justify-center">
               <div class="flex flex-col items-center justify-center rounded-2xl bg-amber-50 px-8 py-4 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:ring-amber-800/40">
-                <span id="idle-countdown-seconds" class="font-mono text-4xl font-bold tabular-nums text-amber-700 dark:text-amber-400">300</span>
+                <span id="idle-countdown-seconds" class="font-mono text-4xl font-bold tabular-nums text-amber-700 dark:text-amber-400">60</span>
                 <span class="mt-1 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-500">SECONDS REMAINING</span>
               </div>
             </div>
@@ -289,6 +334,7 @@
     <!-- Hidden form for automated idle logout POST -->
     <form id="idle-logout-form" method="POST" action="{{ route('logout') }}" class="hidden">
       @csrf
+      <input type="hidden" name="reason" value="idle">
     </form>
 
     {{-- ── Global Executive Alert Modal (Alpine.js) ─────────────────────────────── --}}
@@ -433,55 +479,143 @@
     <!-- Session Security & Idle Timeout Monitor -->
     <script src="{{ asset('assets/js/auth/idle-monitor.js') }}"></script>
 
-    <!-- Executive Page Navigation & Sidebar Loading Transition Controller -->
+    <!-- Executive Navigation & Submodule Loading Modal Controller -->
     <script>
       (function() {
-        const progressBar = document.getElementById('fms-top-progress-bar');
-        const progressContainer = document.getElementById('fms-top-progress');
+        const loader = document.getElementById('fms-navigation-loader');
+        const backdrop = document.getElementById('fms-loader-backdrop');
+        const card = document.getElementById('fms-loader-card');
+        const titleEl = document.getElementById('fms-loader-title');
+        const descEl = document.getElementById('fms-loader-desc');
 
-        function startProgress() {
-          if (!progressBar || !progressContainer) return;
-          progressBar.style.transition = 'width 300ms cubic-bezier(0.1, 0.7, 0.1, 1)';
-          progressContainer.style.opacity = '1';
-          progressBar.style.width = '75%';
+        let safetyTimeout = null;
+
+        function showNavigationLoader(customTitle = null, customDesc = null) {
+          if (!loader || !backdrop || !card) return;
+
+          if (customTitle && titleEl) {
+            titleEl.textContent = customTitle;
+          } else if (titleEl) {
+            titleEl.textContent = 'Loading Module...';
+          }
+
+          if (customDesc && descEl) {
+            descEl.textContent = customDesc;
+          } else if (descEl) {
+            descEl.textContent = 'Preparing hospital ledger & clinical records';
+          }
+
+          clearTimeout(safetyTimeout);
+
+          // Make visible and activate transitions
+          loader.classList.remove('pointer-events-none', 'invisible', 'opacity-0');
+          loader.classList.add('pointer-events-auto', 'opacity-100');
+
+          requestAnimationFrame(() => {
+            backdrop.classList.remove('opacity-0');
+            backdrop.classList.add('opacity-100');
+
+            card.classList.remove('opacity-0', 'scale-95');
+            card.classList.add('opacity-100', 'scale-100');
+          });
+
+          // Safety auto-dismiss after 8 seconds in case navigation is interrupted or downloads a file
+          safetyTimeout = setTimeout(() => {
+            hideNavigationLoader();
+          }, 8000);
         }
 
-        function completeProgress() {
-          if (!progressBar || !progressContainer) return;
-          progressBar.style.transition = 'width 140ms ease-out';
-          progressBar.style.width = '100%';
+        function hideNavigationLoader() {
+          if (!loader || !backdrop || !card) return;
+          clearTimeout(safetyTimeout);
+
+          backdrop.classList.remove('opacity-100');
+          backdrop.classList.add('opacity-0');
+
+          card.classList.remove('opacity-100', 'scale-100');
+          card.classList.add('opacity-0', 'scale-95');
+
           setTimeout(() => {
-            progressContainer.style.opacity = '0';
-            setTimeout(() => {
-              progressBar.style.transition = 'none';
-              progressBar.style.width = '0%';
-            }, 180);
-          }, 140);
+            loader.classList.remove('pointer-events-auto', 'opacity-100');
+            loader.classList.add('pointer-events-none', 'invisible', 'opacity-0');
+          }, 200);
+
           document.querySelectorAll('.sidebar-link.is-navigating').forEach(el => el.classList.remove('is-navigating'));
         }
 
-        // Complete progress on initial page load and when restored from bfcache
-        window.addEventListener('pageshow', completeProgress);
+        // Export globally for programmatic calls (e.g., reports, async exports)
+        window.showNavigationLoader = showNavigationLoader;
+        window.hideNavigationLoader = hideNavigationLoader;
 
-        // Immediate tactile feedback on navigation clicks
+        // Reset loader on page restore from BFCache and history navigation
+        window.addEventListener('pageshow', hideNavigationLoader);
+        window.addEventListener('popstate', hideNavigationLoader);
+
+        // Allow dismissing via Escape key if navigation hangs
+        window.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape') hideNavigationLoader();
+        });
+
+        // Intercept navigation link clicks (submodules, sidebar links, header actions)
         document.addEventListener('click', function(e) {
           const link = e.target.closest('a');
           if (!link) return;
+
+          // Don't intercept if prevented or non-primary/modifier clicks
           if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
           if (link.target && link.target !== '_self') return;
+
           const hrefAttr = link.getAttribute('href');
-          if (!hrefAttr || hrefAttr.startsWith('#') || hrefAttr.startsWith('javascript:')) return;
+          if (!hrefAttr || hrefAttr.startsWith('#') || hrefAttr.startsWith('javascript:') || hrefAttr.startsWith('mailto:') || hrefAttr.startsWith('tel:')) return;
           if (link.hasAttribute('download')) return;
+          if (link.dataset.noLoader !== undefined) return;
 
           try {
             const url = new URL(link.href, window.location.origin);
-            if (url.origin === window.location.origin && (url.pathname !== window.location.pathname || url.search !== window.location.search)) {
-              startProgress();
-              if (link.classList.contains('sidebar-link')) {
-                link.classList.add('is-navigating');
+
+            // Only trigger for same-origin URLs
+            if (url.origin !== window.location.origin) return;
+
+            // Ignore pure in-page fragment hashes
+            if (url.pathname === window.location.origin && url.hash) return;
+            if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash) return;
+
+            // Extract context-aware title from link (e.g. submodule text)
+            let labelText = '';
+            const truncateEl = link.querySelector('.truncate, span:not(.sidebar-caret), h4, p');
+            if (truncateEl && truncateEl.textContent.trim()) {
+              labelText = truncateEl.textContent.trim();
+            } else if (link.getAttribute('title')) {
+              labelText = link.getAttribute('title').trim();
+            } else {
+              const clone = link.cloneNode(true);
+              clone.querySelectorAll('i, svg').forEach(n => n.remove());
+              const text = clone.textContent.trim();
+              if (text && text.length < 35) {
+                labelText = text;
               }
             }
+
+            const title = labelText ? `Loading ${labelText}...` : 'Loading Module...';
+            const isSidebar = Boolean(link.closest('#fms-sidebar'));
+            const desc = isSidebar ? 'Navigating hospital module...' : 'Preparing financial records...';
+
+            showNavigationLoader(title, desc);
+
+            if (link.classList.contains('sidebar-link')) {
+              link.classList.add('is-navigating');
+            }
           } catch (err) {}
+        });
+
+        // Also intercept full-page form submissions (e.g. search, filters, non-AJAX actions)
+        document.addEventListener('submit', function(e) {
+          const form = e.target;
+          if (!form || form.dataset.noLoader !== undefined || form.target === '_blank') return;
+          if (e.defaultPrevented) return;
+          if (form.id === 'idle-logout-form') return; // Idle logout has its own workflow
+
+          showNavigationLoader('Processing...', 'Submitting hospital transaction securely...');
         });
       })();
     </script>

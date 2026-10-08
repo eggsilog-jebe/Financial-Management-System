@@ -233,15 +233,22 @@ final class LoginController extends Controller
     public function logout(Request $request): RedirectResponse
     {
         $user = Auth::user();
+        $isIdle = $request->input('reason') === 'idle' || $request->query('reason') === 'idle';
 
         if ($user) {
             $sessionId = $request->session()->getId();
-            $this->sessionManager->terminateCurrentSession($sessionId);
+            $reason = $isIdle
+                ? \App\Models\UserActiveSession::REASON_IDLE_TIMEOUT
+                : \App\Models\UserActiveSession::REASON_MANUAL_LOGOUT;
+
+            $this->sessionManager->terminateCurrentSession($sessionId, $reason);
 
             ActivityLog::logAuth(
-                event:       'logout',
+                event:       $isIdle ? 'idle_timeout_logout' : 'logout',
                 user:        $user,
-                description: "User [{$user->name}] ({$user->role}) logged out.",
+                description: $isIdle
+                    ? "User [{$user->name}] ({$user->role}) logged out due to inactivity."
+                    : "User [{$user->name}] ({$user->role}) logged out.",
                 ip:          $request->ip(),
                 userAgent:   $request->userAgent()
             );
@@ -253,6 +260,10 @@ final class LoginController extends Controller
         $request->session()->regenerateToken();
 
         $response = redirect()->route('login');
+
+        if ($isIdle) {
+            $response->with('session_expired', 'Your session expired due to inactivity (3 minutes). Please sign in again.');
+        }
 
         if ($user) {
             $response->withCookie($this->twoFactorRememberService->forgetCookie($user));

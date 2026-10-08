@@ -186,8 +186,6 @@
   </div>
 
   
-  <!-- Sub-Module Category Navigation Bar -->
-  @include('partials.submodule-nav')
 
   {{-- Audit Log Table Card --}}
   <div class="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-900 dark:ring-slate-800 overflow-hidden">

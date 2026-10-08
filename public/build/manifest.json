@@ -180,7 +180,7 @@
     "src": "node_modules/@phosphor-icons/web/src/regular/Phosphor.woff2"
   },
   "resources/css/app.css": {
-    "file": "assets/app-C33cOrgz.css",
+    "file": "assets/app-KuHz5CIx.css",
     "name": "app",
     "names": [
       "app.css"
@@ -207,7 +207,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-CadPUDAm.js",
+    "file": "assets/app-DX2iEdxk.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true

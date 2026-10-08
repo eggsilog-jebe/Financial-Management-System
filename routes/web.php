@@ -96,10 +96,67 @@ Route::middleware('auth')->group(function () {
     Route::delete('/two-factor-setup', [\App\Http\Controllers\Auth\TwoFactorSetupController::class, 'destroy'])
         ->name('two-factor.setup.destroy');
 
-    // Session Heartbeat — keeps the server session alive from the client-side idle monitor
+    // Session Heartbeat & Idle Status Sync — keeps the server session alive or checks remaining time
     Route::post('/session/heartbeat', function (\Illuminate\Http\Request $request) {
-        $request->session()->put('auth.last_activity_at', now()->toIso8601String());
-        return response()->json(['status' => 'ok', 'remaining' => 900]);
+        if (! auth()->check()) {
+            return response()->json([
+                'status'       => 'unauthenticated',
+                'redirect_url' => route('login'),
+            ], 401);
+        }
+
+        $idleThreshold = (int) config('session.idle_timeout', \App\Http\Middleware\IdleSessionTimeout::IDLE_THRESHOLD_SECONDS);
+        $lastActivity  = $request->session()->get('auth.last_activity_at');
+        $isTouch       = $request->boolean('touch', false);
+
+        // If active user interaction was registered or session newly initialized, touch the timestamp
+        if ($isTouch || $lastActivity === null) {
+            $request->session()->put('auth.last_activity_at', now()->toIso8601String());
+
+            return response()->json([
+                'status'       => 'ok',
+                'remaining'    => $idleThreshold,
+                'idle_seconds' => 0,
+            ]);
+        }
+
+        // Passive sync / displacement check: evaluate idle expiration
+        $lastActivityCarbon = \Illuminate\Support\Carbon::parse($lastActivity);
+        $idleSeconds        = max(0, now()->getTimestamp() - $lastActivityCarbon->getTimestamp());
+        $remaining          = max(0, $idleThreshold - $idleSeconds);
+
+        if ($idleSeconds > $idleThreshold) {
+            $user = auth()->user();
+            if ($user) {
+                \App\Models\ActivityLog::logAuth(
+                    event:       'idle_timeout_logout',
+                    user:        $user,
+                    description: "User [{$user->name}] ({$user->role}) was automatically logged out after {$idleSeconds}s of inactivity via heartbeat.",
+                    ip:          $request->ip(),
+                    userAgent:   $request->userAgent(),
+                );
+                app(\App\Services\Security\ActiveSessionManagerService::class)->terminateCurrentSession(
+                    $request->session()->getId(),
+                    \App\Models\UserActiveSession::REASON_IDLE_TIMEOUT
+                );
+            }
+
+            auth()->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return response()->json([
+                'status'       => 'expired',
+                'message'      => 'Session expired due to inactivity.',
+                'redirect_url' => route('login', ['expired' => 1]),
+            ], 401);
+        }
+
+        return response()->json([
+            'status'       => 'ok',
+            'remaining'    => $remaining,
+            'idle_seconds' => $idleSeconds,
+        ]);
     })->name('session.heartbeat');
 });
 

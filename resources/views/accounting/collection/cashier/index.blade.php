@@ -114,8 +114,6 @@
     </div>
   @endif
 
-    <!-- Sub-Module Category Navigation Bar -->
-  @include('partials.submodule-nav')
 
 {{-- Main POS Counter Interface: 2-Column Responsive Layout --}}
   <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">

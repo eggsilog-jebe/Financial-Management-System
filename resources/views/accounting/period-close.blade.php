@@ -45,8 +45,6 @@
     </div>
   @endif
 
-  <!-- Sub-Module Category Navigation Bar -->
-  @include('partials.submodule-nav')
 
   <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
     {{-- Active Fiscal Period Status Card --}}

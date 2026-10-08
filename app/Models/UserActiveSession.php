@@ -31,10 +31,11 @@ final class UserActiveSession extends Model
 {
     use HasFactory;
 
-    public const REASON_DISPLACED     = 'displaced_by_new_login';
-    public const REASON_ADMIN_REVOKED = 'revoked_by_admin';
-    public const REASON_MANUAL_LOGOUT = 'manual_logout';
+    public const REASON_DISPLACED          = 'displaced_by_new_login';
+    public const REASON_ADMIN_REVOKED      = 'revoked_by_admin';
+    public const REASON_MANUAL_LOGOUT      = 'manual_logout';
     public const REASON_WORKSTATION_REVOKED = 'workstation_revoked';
+    public const REASON_IDLE_TIMEOUT        = 'idle_timeout';
 
     protected $fillable = [
         'user_id',
