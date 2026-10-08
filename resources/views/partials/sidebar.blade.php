@@ -6,8 +6,6 @@
   $isDisbursement = request()->routeIs('disbursement.*');
   $isCollection = request()->routeIs('collection.*') || request()->routeIs('accounting.cashier.*');
   $isBudget = request()->routeIs('budget.*');
-  $isCash = request()->routeIs('cash.*');
-  $isReporting = request()->routeIs('reporting.*') || request()->routeIs('accounting.reports.*');
   $isUserSecurity = request()->routeIs('user-security.*') || request()->routeIs('accounting.audit-log');
 @endphp
 
@@ -315,73 +313,7 @@
     </a>
     @endcan
 
-    <!-- 7. Financial Reporting -->
-    @can('access-financial-reports')
-    <a 
-      href="{{ route('reporting.balance-sheet') }}" 
-      class="sidebar-link group relative flex items-center rounded-xl text-sm font-medium transition-colors duration-150 py-2.5 overflow-hidden {{ $isReporting ? 'bg-emerald-50 text-emerald-800 font-semibold ring-1 ring-emerald-600/20 dark:bg-emerald-950/50 dark:text-emerald-300 dark:ring-emerald-500/30' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800/50' }}"
-      :class="sidebarCollapsed ? 'lg:px-0 lg:justify-center' : 'px-3 justify-between'"
-    >
-      <div class="flex items-center min-w-0 transition-all duration-300 ease-in-out" :class="sidebarCollapsed ? 'lg:gap-0' : 'gap-3'">
-        <i class="ph-bold ph-chart-line-up text-lg shrink-0 {{ $isReporting ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300' }}"></i>
-        <span 
-          class="sidebar-label whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out"
-          :class="sidebarCollapsed ? 'lg:max-w-0 lg:opacity-0 lg:-translate-x-2' : 'max-w-[160px] opacity-100 translate-x-0'"
-        >Financial Reporting</span>
-      </div>
-      @if($isReporting)
-        <span 
-          class="sidebar-indicator h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 shrink-0 transition-all duration-300 ease-in-out"
-          :class="sidebarCollapsed ? 'lg:opacity-0 lg:scale-0' : 'opacity-100 scale-100'"
-        ></span>
-      @endif
-
-      <!-- Floating Tooltip on Hover (Desktop Collapsed Mode) -->
-      <div 
-        x-show="sidebarCollapsed" 
-        x-cloak 
-        class="hidden lg:group-hover:flex absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 items-center px-2.5 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold shadow-xl whitespace-nowrap pointer-events-none ring-1 ring-slate-800 dark:bg-slate-800 dark:text-white dark:ring-slate-700"
-      >
-        <span>Financial Reporting</span>
-        <span class="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900 dark:border-r-slate-800"></span>
-      </div>
-    </a>
-    @endcan
-
-    <!-- 8. Cash & Banking -->
-    @can('access-cash-management')
-    <a 
-      href="{{ route('cash.bank-accounts') }}" 
-      class="sidebar-link group relative flex items-center rounded-xl text-sm font-medium transition-colors duration-150 py-2.5 overflow-hidden {{ $isCash ? 'bg-emerald-50 text-emerald-800 font-semibold ring-1 ring-emerald-600/20 dark:bg-emerald-950/50 dark:text-emerald-300 dark:ring-emerald-500/30' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800/50' }}"
-      :class="sidebarCollapsed ? 'lg:px-0 lg:justify-center' : 'px-3 justify-between'"
-    >
-      <div class="flex items-center min-w-0 transition-all duration-300 ease-in-out" :class="sidebarCollapsed ? 'lg:gap-0' : 'gap-3'">
-        <i class="ph-bold ph-coins text-lg shrink-0 {{ $isCash ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300' }}"></i>
-        <span 
-          class="sidebar-label whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out"
-          :class="sidebarCollapsed ? 'lg:max-w-0 lg:opacity-0 lg:-translate-x-2' : 'max-w-[160px] opacity-100 translate-x-0'"
-        >Cash &amp; Banking</span>
-      </div>
-      @if($isCash)
-        <span 
-          class="sidebar-indicator h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 shrink-0 transition-all duration-300 ease-in-out"
-          :class="sidebarCollapsed ? 'lg:opacity-0 lg:scale-0' : 'opacity-100 scale-100'"
-        ></span>
-      @endif
-
-      <!-- Floating Tooltip on Hover (Desktop Collapsed Mode) -->
-      <div 
-        x-show="sidebarCollapsed" 
-        x-cloak 
-        class="hidden lg:group-hover:flex absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 items-center px-2.5 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold shadow-xl whitespace-nowrap pointer-events-none ring-1 ring-slate-800 dark:bg-slate-800 dark:text-white dark:ring-slate-700"
-      >
-        <span>Cash &amp; Banking</span>
-        <span class="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900 dark:border-r-slate-800"></span>
-      </div>
-    </a>
-    @endcan
-
-    <!-- 9. User & Security -->
+    <!-- 7. User & Security -->
     @can('access-user-management')
     <a 
       href="{{ route('user-security.users') }}" 

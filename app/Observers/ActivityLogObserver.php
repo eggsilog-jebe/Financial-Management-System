@@ -122,10 +122,9 @@ final class ActivityLogObserver
             'DisbursementVoucher', 'CheckRegister', 'PettyCashExpense', 'PettyCashFund', 'PaymentRequest', 'PayrollRun', 'PayrollItem' => 'Disbursements',
             'CashierShift', 'Payment', 'OfficialReceipt', 'PaymentReceipt' => 'Cashier POS & Collections',
             'BudgetAllocation', 'BudgetEncumbrance', 'BudgetReallocation' => 'Fiscal Budgets',
-            'BankAccount', 'BankReconciliation', 'BankDeposit', 'BankStatementLine', 'FundTransfer' => 'Cash Management',
+            'BankAccount', 'BankDeposit'                  => 'Disbursements & Treasury',
             'GuaranteeLetter'                             => 'Malasakit & Subsidies',
             'HmoClaim', 'PhilhealthClaim'                 => 'Claims & Subsidies',
-            'TaxCertificate', 'TaxReturn', 'TaxRule' => 'Tax & Compliance',
             'User', 'UserActiveSession', 'UserWorkstation' => 'User & Security',
             default => $class,
         };

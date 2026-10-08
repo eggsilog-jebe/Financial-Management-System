@@ -70,13 +70,6 @@ final class SystemWideViewIntegrityTest extends TestCase
             'AR Aging Schedule'         => ['/accounts-receivable/receivable-aging', 'ar.ar-aging'],
             'AR Malasakit Assistance'   => ['/accounts-receivable/malasakit-assistance', 'ar.malasakit.index'],
 
-            // Cash & Treasury
-            'Cash Bank Accounts'        => ['/cash-management/bank-accounts', 'cash.bank-accounts'],
-            'Cash Bank Reconciliation'  => ['/cash-management/bank-reconciliation', 'cash.bank-reconciliation'],
-            'Cash Flow Forecasting'     => ['/cash-management/cash-flow-forecasting', 'cash.cash-flow-forecast'],
-            'Cash Fund Transfers'       => ['/cash-management/fund-transfers', 'cash.fund-transfers'],
-            'Cash Liquidity Management' => ['/cash-management/liquidity-management', 'cash.liquidity'],
-
             // Collection & Cashier
             'Collection Cashier Desk'   => ['/collection-management/cashier-desk', 'collection.cashier-desk'],
             'Collection Bank Deposits'  => ['/collection-management/bank-deposits', 'collection.bank-deposits'],
@@ -97,21 +90,6 @@ final class SystemWideViewIntegrityTest extends TestCase
             'Budget Fiscal Planning'    => ['/budget-management/fiscal-planning', 'budget.fiscal-planning'],
             'Budget Reallocations'      => ['/budget-management/budget-reallocations', 'budget.reallocations'],
             'Budget Variance Analysis'  => ['/budget-management/variance-analysis', 'budget.variance-analysis'],
-
-            // Tax Management
-            'Tax Audit Trail'           => ['/tax-management/tax-audit-trail', 'tax.tax-audit'],
-            'Tax Configuration'         => ['/tax-management/tax-configuration', 'tax.tax-config'],
-            'Tax Exemptions'            => ['/tax-management/tax-exemptions', 'tax.tax-exemptions'],
-            'Tax Returns'               => ['/tax-management/tax-returns', 'tax.tax-returns'],
-            'Tax Withholding'           => ['/tax-management/withholding-tax', 'tax.withholding-tax'],
-
-            // Financial Reporting
-            'Reporting Balance Sheet'   => ['/financial-reporting/balance-sheet', 'reporting.balance-sheet'],
-            'Reporting Cash Flow'       => ['/financial-reporting/cash-flow-statement', 'reporting.cash-flow-statement'],
-            'Reporting Changes in Equity' => ['/financial-reporting/statement-of-changes-in-equity', 'reporting.equity'],
-            'Reporting Executive Reports' => ['/financial-reporting/executive-reports', 'reporting.executive-reports'],
-            'Reporting KPI Dashboard'   => ['/financial-reporting/financial-kpi-dashboard', 'reporting.financial-kpi-dashboard'],
-            'Reporting Profit and Loss' => ['/financial-reporting/profit-and-loss', 'reporting.profit-and-loss'],
 
             // User Security
             'Security Audit Trail'      => ['/user-security/audit-trail', 'user-security.audit-trail'],

@@ -138,22 +138,6 @@
           'route' => route('budget.fiscal-planning')
         ],
         [
-          'title' => 'Cash & Banking', 
-          'desc' => 'Bank Directory, 30/60/90d Cash Forecasting, Bank Reconciliation & Fund Transfers',
-          'icon' => 'ph-coins', 
-          'badge' => 'Liquidity', 
-          'color' => 'sky',
-          'route' => route('cash.bank-accounts')
-        ],
-        [
-          'title' => 'Financial Reporting & Analytics', 
-          'desc' => 'Balance Sheet, P&L, Statement of Cash Flows, Equity & Financial KPI Dossiers',
-          'icon' => 'ph-chart-line-up', 
-          'badge' => 'Analytics', 
-          'color' => 'indigo',
-          'route' => route('reporting.balance-sheet')
-        ],
-        [
           'title' => 'User Security & CAS Audit', 
           'desc' => 'Workstation Binding, Role Authorization, 2FA TOTP & Tamper-proof CAS Logs',
           'icon' => 'ph-shield-check', 

@@ -17,16 +17,11 @@ use App\Models\OfficialReceipt;
 use App\Models\PatientAccount;
 use App\Models\Payment;
 use App\Models\PurchaseBill;
-use App\Models\TaxReturn;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\Accounting\CasAuditTrailService;
 use App\Services\Accounting\GeneralLedgerReportService;
 use App\Services\Accounting\JournalEntryService;
-use App\Services\Accounting\Reporting\BalanceSheetService;
-use App\Services\Accounting\Reporting\CashFlowService;
-use App\Services\Accounting\Reporting\ProfitAndLossService;
-use App\Services\Accounting\Reporting\StatementOfChangesInEquityService;
 use Database\Seeders\ChartOfAccountsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -38,9 +33,6 @@ final class EndToEndFinancialFlowTest extends TestCase
     private JournalEntryService $glService;
     private CasAuditTrailService $auditService;
     private GeneralLedgerReportService $glReportService;
-    private ProfitAndLossService $pnlService;
-    private BalanceSheetService $bsService;
-    private StatementOfChangesInEquityService $equityService;
 
     private User $accountant;
     private User $cashier;
@@ -58,9 +50,6 @@ final class EndToEndFinancialFlowTest extends TestCase
         $this->glService = app(JournalEntryService::class);
         $this->auditService = app(CasAuditTrailService::class);
         $this->glReportService = app(GeneralLedgerReportService::class);
-        $this->pnlService = app(ProfitAndLossService::class);
-        $this->bsService = app(BalanceSheetService::class);
-        $this->equityService = app(StatementOfChangesInEquityService::class);
 
         $this->accountant = User::factory()->create(['role' => 'StaffAccountant', 'name' => 'Eduardo Mendoza', 'email' => 'accountant@hospital.local']);
         $this->cashier    = User::factory()->create(['role' => 'Cashier', 'name' => 'Maria Clara', 'email' => 'cashier@hospital.local']);
@@ -392,27 +381,7 @@ final class EndToEndFinancialFlowTest extends TestCase
         $this->assertNotNull($sssPayable);
 
         // ─────────────────────────────────────────────────────────────────────────
-        // STEP 6: Statutory Tax Return Filing & Payment (/tax-management/tax-returns)
-        // ─────────────────────────────────────────────────────────────────────────
-        $this->actingAs($this->manager);
-
-        $taxReturnRes = $this->post(route('tax.tax-returns.store'), [
-            'form_type'      => '1601-EQ',
-            'period_covered' => 'Q1 2026',
-            'filing_date'    => '2026-04-30',
-            'tax_due'        => '600.00',
-        ]);
-        $taxReturnRes->assertRedirect(route('tax.tax-returns'));
-
-        $taxReturn = TaxReturn::where('form_type', '1601-EQ')->firstOrFail();
-        $this->assertEquals('FILED', $taxReturn->status);
-
-        $payTaxRes = $this->post(route('tax.tax-returns.pay', $taxReturn->id));
-        $payTaxRes->assertRedirect(route('tax.tax-returns'));
-        $this->assertEquals('PAID', $taxReturn->fresh()->status);
-
-        // ─────────────────────────────────────────────────────────────────────────
-        // STEP 7: Double-Entry Trial Balance Verification
+        // STEP 6: Double-Entry Trial Balance Verification
         // ─────────────────────────────────────────────────────────────────────────
         $trialBalance = $this->glReportService->getTrialBalance();
 
@@ -420,28 +389,20 @@ final class EndToEndFinancialFlowTest extends TestCase
         $this->assertEquals(0, bccomp($trialBalance['total_debit'], $trialBalance['total_credit'], 4));
 
         // ─────────────────────────────────────────────────────────────────────────
-        // STEP 8: Four Primary Financial Statements Reconciliation (PFRS/IAS 1 & PAS 7)
+        // STEP 7: General Ledger Income Statement & Balance Sheet Reporting
         // ─────────────────────────────────────────────────────────────────────────
-        $pnl = $this->pnlService->getProfitAndLossData('2026-01-01', '2026-01-31');
-        $this->assertNotNull($pnl);
-        $this->assertArrayHasKey('net_income', $pnl);
+        $incomeStatement = $this->glReportService->getIncomeStatement($trialBalance);
+        $this->assertNotNull($incomeStatement);
+        $this->assertArrayHasKey('net_income', $incomeStatement);
 
-        $bs = $this->bsService->getBalanceSheetData('2026-01-31');
-        $currentBs = $bs['current'];
-        $this->assertTrue($currentBs['is_balanced'], 'Balance Sheet fundamental equality A = L + E must hold.');
-        $this->assertEquals(0, bccomp($currentBs['total_assets'], $currentBs['total_liab_and_equity'], 4));
-
-        $equity = $this->equityService->getChangesInEquityData('2026-01-01', '2026-01-31');
-        $this->assertEquals(0, bccomp($equity['total_closing_equity'], $currentBs['total_equity'], 4),
-            'Statement of Changes in Equity ending balance must equal Balance Sheet Total Equity exactly.'
-        );
-
-        $cashFlow = app(CashFlowService::class)->getCashFlowData('2026-01-01', '2026-01-31');
-        $this->assertNotNull($cashFlow);
-        $this->assertArrayHasKey('net_operating_cash', $cashFlow);
+        $balanceSheet = $this->glReportService->getBalanceSheet($trialBalance, $incomeStatement);
+        $this->assertNotNull($balanceSheet);
+        $this->assertArrayHasKey('total_assets', $balanceSheet);
+        $this->assertArrayHasKey('total_liabilities', $balanceSheet);
+        $this->assertArrayHasKey('total_equity', $balanceSheet);
 
         // ─────────────────────────────────────────────────────────────────────────
-        // STEP 9: Cryptographic BIR CAS Audit Trail Hash Chain Integrity
+        // STEP 8: Cryptographic BIR CAS Audit Trail Hash Chain Integrity
         // ─────────────────────────────────────────────────────────────────────────
         $isChainValid = $this->auditService->verifyAuditTrailIntegrity();
         $this->assertTrue($isChainValid, 'BIR CAS cryptographic SHA-256 hash chain must be 100% unbroken.');

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\TaxManagementController;
 use App\Http\Controllers\BudgetController;
 use App\Http\Controllers\GeneralLedger\ChartOfAccountsController;
 use App\Http\Controllers\GeneralLedger\JournalEntryController;
@@ -46,17 +45,6 @@ use App\Http\Controllers\Collection\PaymentReceiptController;
 use App\Http\Controllers\Collection\DepositSlipBatchController;
 use App\Http\Controllers\Collection\BankDepositController;
 use App\Http\Controllers\Collection\PaymentGatewayLogController;
-use App\Http\Controllers\CashManagement\BankAccountController;
-use App\Http\Controllers\CashManagement\CashFlowForecastController;
-use App\Http\Controllers\CashManagement\BankReconciliationController;
-use App\Http\Controllers\CashManagement\FundTransferController;
-use App\Http\Controllers\CashManagement\LiquidityManagementController;
-use App\Http\Controllers\FinancialReporting\BalanceSheetController;
-use App\Http\Controllers\FinancialReporting\ProfitAndLossController;
-use App\Http\Controllers\FinancialReporting\CashFlowStatementController;
-use App\Http\Controllers\FinancialReporting\StatementOfChangesInEquityController;
-use App\Http\Controllers\FinancialReporting\FinancialKpiDashboardController;
-use App\Http\Controllers\FinancialReporting\ExecutiveReportPackageController;
 use App\Http\Controllers\UserSecurity\UserManagementController;
 use App\Http\Controllers\Auth\ChangePasswordController;
 
@@ -444,111 +432,7 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 
-    // 7. Cash Management
-    Route::prefix('cash-management')->name('cash.')->group(function () {
-        // Bank Accounts Directory
-        Route::middleware(['role:StaffAccountant,FinanceManager,CFO,FinanceDirector,Auditor'])->group(function () {
-            Route::get('/bank-accounts', [BankAccountController::class, 'index'])->name('bank-accounts');
-        });
-        Route::middleware(['role:StaffAccountant,FinanceManager,CFO,FinanceDirector'])->group(function () {
-            Route::post('/bank-accounts', [BankAccountController::class, 'store'])->name('bank-accounts.store');
-        });
-        Route::middleware(['role:FinanceManager,CFO,FinanceDirector'])->group(function () {
-            Route::put('/bank-accounts/{id}', [BankAccountController::class, 'update'])->name('bank-accounts.update');
-            Route::patch('/bank-accounts/{id}/toggle', [BankAccountController::class, 'toggle'])->name('bank-accounts.toggle');
-        });
-
-        // Cash Flow Forecasting Engine
-        Route::middleware(['role:StaffAccountant,FinanceManager,CFO,FinanceDirector,Auditor'])->group(function () {
-            Route::get('/cash-flow-forecasting', [CashFlowForecastController::class, 'index'])->name('cash-flow-forecast');
-            Route::get('/cash-flow-forecasting/export', [CashFlowForecastController::class, 'export'])->name('cash-flow-forecast.export');
-        });
-
-        // Bank Reconciliation Terminal
-        Route::middleware(['role:StaffAccountant,FinanceManager,CFO,FinanceDirector,Auditor'])->group(function () {
-            Route::get('/bank-reconciliation', [BankReconciliationController::class, 'index'])->name('bank-reconciliation');
-        });
-        Route::middleware(['role:StaffAccountant,FinanceManager,CFO,FinanceDirector'])->group(function () {
-            Route::post('/bank-reconciliation/post', [BankReconciliationController::class, 'post'])->name('bank-reconciliation.post');
-        });
-
-        // Inter-Account Fund Transfers
-        Route::middleware(['role:StaffAccountant,FinanceManager,CFO,FinanceDirector,Auditor'])->group(function () {
-            Route::get('/fund-transfers', [FundTransferController::class, 'index'])->name('fund-transfers');
-        });
-        Route::middleware(['role:FinanceManager,CFO,FinanceDirector'])->group(function () {
-            Route::post('/fund-transfers', [FundTransferController::class, 'store'])->name('fund-transfers.store');
-        });
-
-        // Liquidity Management & Ratios
-        Route::middleware(['role:StaffAccountant,FinanceManager,CFO,FinanceDirector,Auditor'])->group(function () {
-            Route::get('/liquidity-management', [LiquidityManagementController::class, 'index'])->name('liquidity');
-            Route::get('/liquidity-management/export', [LiquidityManagementController::class, 'export'])->name('liquidity.export');
-        });
-    });
-
-    // 8. Financial Reporting & Analytics
-    Route::prefix('financial-reporting')->name('reporting.')->group(function () {
-        // Balance Sheet Statement
-        Route::middleware(['role:StaffAccountant,FinanceManager,CFO,FinanceDirector,Auditor'])->group(function () {
-            Route::get('/balance-sheet', [BalanceSheetController::class, 'index'])->name('balance-sheet');
-            Route::get('/balance-sheet/export', [BalanceSheetController::class, 'export'])->name('balance-sheet.export');
-        });
-
-        // Profit & Loss / Income Statement
-        Route::middleware(['role:StaffAccountant,FinanceManager,CFO,FinanceDirector,Auditor'])->group(function () {
-            Route::get('/profit-loss', [ProfitAndLossController::class, 'index'])->name('profit-loss');
-            Route::get('/profit-and-loss', [ProfitAndLossController::class, 'index'])->name('profit-and-loss');
-            Route::get('/profit-loss/export', [ProfitAndLossController::class, 'export'])->name('profit-loss.export');
-        });
-
-        // Statement of Cash Flows (PAS 7)
-        Route::middleware(['role:StaffAccountant,FinanceManager,CFO,FinanceDirector,Auditor'])->group(function () {
-            Route::get('/cash-flow-statement', [CashFlowStatementController::class, 'index'])->name('cash-flow-statement');
-            Route::get('/cash-flow-statement/export', [CashFlowStatementController::class, 'export'])->name('cash-flow-statement.export');
-        });
-
-        // Statement of Changes in Equity (PFRS / IAS 1)
-        Route::middleware(['role:StaffAccountant,FinanceManager,CFO,FinanceDirector,Auditor'])->group(function () {
-            Route::get('/statement-of-changes-in-equity', [StatementOfChangesInEquityController::class, 'index'])->name('equity');
-            Route::get('/equity', [StatementOfChangesInEquityController::class, 'index'])->name('equity.short');
-            Route::get('/statement-of-changes-in-equity/export', [StatementOfChangesInEquityController::class, 'export'])->name('equity.export');
-        });
-
-        // Financial KPI Dashboard
-        Route::middleware(['role:StaffAccountant,FinanceManager,CFO,FinanceDirector,Auditor'])->group(function () {
-            Route::get('/financial-kpi-dashboard', [FinancialKpiDashboardController::class, 'index'])->name('financial-kpi-dashboard');
-            Route::get('/kpi-dashboard', [FinancialKpiDashboardController::class, 'index'])->name('kpi-dashboard');
-            Route::get('/kpi-dashboard/export', [FinancialKpiDashboardController::class, 'export'])->name('kpi-dashboard.export');
-        });
-
-        // Executive Reports Dossier
-        Route::middleware(['role:StaffAccountant,FinanceManager,CFO,FinanceDirector,Auditor'])->group(function () {
-            Route::get('/executive-reports', [ExecutiveReportPackageController::class, 'index'])->name('executive-reports');
-        });
-    });
-
-    // 9. Tax Management & Statutory Compliance
-    Route::prefix('tax-management')->name('tax.')->group(function () {
-        // Read-only access for Accounting Staff, Managers, CFO, and Auditors
-        Route::middleware(['role:StaffAccountant,FinanceManager,CFO,FinanceDirector,Auditor'])->group(function () {
-            Route::get('/tax-configuration', [TaxManagementController::class, 'taxConfiguration'])->name('tax-config');
-            Route::get('/withholding-tax', [TaxManagementController::class, 'withholdingTax'])->name('withholding-tax');
-            Route::get('/tax-returns', [TaxManagementController::class, 'taxReturns'])->name('tax-returns');
-            Route::get('/tax-exemptions', [TaxManagementController::class, 'taxExemptions'])->name('tax-exemptions');
-            Route::get('/tax-audit-trail', [TaxManagementController::class, 'taxAuditTrail'])->name('tax-audit');
-        });
-
-        // Statutory Return Filing & Tax Rule Configuration (Managers and CFO only)
-        Route::middleware(['role:FinanceManager,CFO,FinanceDirector'])->group(function () {
-            Route::post('/tax-returns', [TaxManagementController::class, 'storeTaxReturn'])->name('tax-returns.store');
-            Route::post('/tax-returns/{id}/pay', [TaxManagementController::class, 'markReturnPaid'])->name('tax-returns.pay');
-            Route::post('/tax-rules', [TaxManagementController::class, 'storeTaxRule'])->name('tax-rules.store');
-            Route::post('/tax-rules/{id}/toggle', [TaxManagementController::class, 'toggleTaxRule'])->name('tax-rules.toggle');
-        });
-    });
-
-    // 10. Accounting UI Interfaces
+    // 7. Accounting UI Interfaces
     Route::prefix('accounting')->name('accounting.')->group(function () {
 
         // Executive Dashboard (All authenticated roles)

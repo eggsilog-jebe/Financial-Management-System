@@ -14,7 +14,6 @@ final class DatabaseSeeder extends Seeder
         $this->call([
             UserAndRoleSeeder::class,
             ChartOfAccountsSeeder::class,
-            TaxConfigurationSeeder::class,
             BankAccountSeeder::class,
             // To load mock demo encounters, invoices, and budgets, run manually:
             // php artisan db:seed --class=MalasakitGuaranteeLetterSeeder

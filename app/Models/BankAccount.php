@@ -41,24 +41,9 @@ final class BankAccount extends Model
         return $this->belongsTo(Account::class, 'gl_account_id');
     }
 
-    public function reconciliations(): HasMany
-    {
-        return $this->hasMany(BankReconciliation::class, 'bank_account_id');
-    }
-
     public function deposits(): HasMany
     {
         return $this->hasMany(BankDeposit::class, 'bank_account_id');
-    }
-
-    public function transfersOut(): HasMany
-    {
-        return $this->hasMany(FundTransfer::class, 'source_bank_account_id');
-    }
-
-    public function transfersIn(): HasMany
-    {
-        return $this->hasMany(FundTransfer::class, 'destination_bank_account_id');
     }
 
     public function scopeActive(Builder $query): Builder

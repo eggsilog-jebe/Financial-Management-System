@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Financial Reports Hub - Financial Reporting | FMS')
-@section('module', 'financial-reporting')
+@section('title', 'Financial Reports Hub - General Ledger | FMS')
+@section('module', 'general-ledger')
 @section('page', 'reports-hub')
 
 @section('content')
@@ -15,13 +15,6 @@
     </div>
 
     <div class="flex flex-wrap items-center gap-2.5">
-      <a 
-        href="{{ route('reporting.equity') }}" 
-        class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 cursor-pointer"
-      >
-        <i class="ph-bold ph-arrows-left-right text-blue-600"></i>
-        <span>Changes in Equity (PFRS)</span>
-      </a>
       <a 
         href="{{ route('accounting.export.trial-balance-csv') }}" 
         class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 cursor-pointer"

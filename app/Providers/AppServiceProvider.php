@@ -106,19 +106,7 @@ class AppServiceProvider extends ServiceProvider
             return in_array($user->role, ['StaffAccountant', 'FinanceManager', 'CFO', 'FinanceDirector', 'Auditor'], true);
         });
 
-        \Illuminate\Support\Facades\Gate::define('access-cash-management', function ($user): bool {
-            return in_array($user->role, ['StaffAccountant', 'FinanceManager', 'CFO', 'FinanceDirector', 'Auditor'], true);
-        });
-
-        \Illuminate\Support\Facades\Gate::define('access-tax-management', function ($user): bool {
-            return in_array($user->role, ['StaffAccountant', 'FinanceManager', 'CFO', 'FinanceDirector', 'Auditor'], true);
-        });
-
         \Illuminate\Support\Facades\Gate::define('access-general-ledger', function ($user): bool {
-            return in_array($user->role, ['StaffAccountant', 'FinanceManager', 'CFO', 'FinanceDirector', 'Auditor'], true);
-        });
-
-        \Illuminate\Support\Facades\Gate::define('access-financial-reports', function ($user): bool {
             return in_array($user->role, ['StaffAccountant', 'FinanceManager', 'CFO', 'FinanceDirector', 'Auditor'], true);
         });
 
@@ -176,12 +164,9 @@ class AppServiceProvider extends ServiceProvider
             \App\Models\OfficialReceipt::class,
             \App\Models\PaymentReceipt::class,
 
-            // Cash & Bank Management
+            // Bank Accounts & Deposits
             \App\Models\BankAccount::class,
             \App\Models\BankDeposit::class,
-            \App\Models\BankReconciliation::class,
-            \App\Models\BankStatementLine::class,
-            \App\Models\FundTransfer::class,
 
             // Fiscal Budgets
             \App\Models\BudgetAllocation::class,
@@ -192,11 +177,6 @@ class AppServiceProvider extends ServiceProvider
             \App\Models\GuaranteeLetter::class,
             \App\Models\HmoClaim::class,
             \App\Models\PhilhealthClaim::class,
-
-            // Tax & Compliance
-            \App\Models\TaxCertificate::class,
-            \App\Models\TaxReturn::class,
-            \App\Models\TaxRule::class,
 
             // User & Terminal Security
             \App\Models\User::class,
