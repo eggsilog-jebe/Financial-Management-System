@@ -69,7 +69,7 @@ final class IdleSessionTimeout
             $lastActivityCarbon = \Illuminate\Support\Carbon::parse($lastActivity);
             $idleSeconds = max(0, now()->getTimestamp() - $lastActivityCarbon->getTimestamp());
 
-            if ($idleSeconds > $idleThreshold) {
+            if ($idleSeconds >= $idleThreshold) {
                 $user = Auth::user();
 
                 if ($user) {
@@ -95,13 +95,13 @@ final class IdleSessionTimeout
 
                 if ($request->expectsJson()) {
                     return response()->json([
-                        'message'      => 'Session expired due to inactivity.',
-                        'redirect_url' => route('login', ['expired' => 1]),
+                        'message'      => 'Session expired due to inactivity (3 minutes).',
+                        'redirect_url' => route('login', ['reason' => 'idle', 'expired' => 1]),
                     ], 401);
                 }
 
-                return redirect()->route('login')
-                    ->with('session_expired', 'Your session expired due to inactivity (3 minutes). Please sign in again.');
+                return redirect()->route('login', ['reason' => 'idle', 'expired' => 1])
+                    ->with('session_expired', 'Your session was automatically terminated because you were idling for 3 minutes. Please sign in again.');
             }
         }
 

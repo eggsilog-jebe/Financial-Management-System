@@ -17,6 +17,7 @@ use App\Models\PhilhealthClaim;
 use App\Models\PurchaseBill;
 use App\Models\UserWorkstation;
 use App\Services\Accounting\AccountingCacheService;
+use App\Services\Accounting\ExecutiveScorecardService;
 use App\Services\Accounting\GeneralLedgerReportService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,7 @@ final class FinancialDashboardController extends Controller
     public function __invoke(
         GeneralLedgerReportService $reportService,
         AccountingCacheService $cacheService,
+        ExecutiveScorecardService $scorecardService,
     ): View {
         // ─── 1. Heavy GL / Balance-Sheet calculations (cached 3 minutes) ───────────
         $financialMetrics = $cacheService->rememberDashboardMetrics(function () use ($reportService): array {
@@ -216,10 +218,41 @@ final class FinancialDashboardController extends Controller
             return $pct >= 85.0;
         });
 
-        // ─── 6. User Context (request-scoped) ────────────────────────────────────────
+        // ─── 6. Executive Hospital Financial & Operational Scorecard ─────────────────
+        $scorecard = $scorecardService->computeScorecard(
+            metrics: array_merge($financialMetrics, [
+                'overallBurnRate' => $overallBurnRate,
+            ]),
+            criticalBudgets: $criticalBudgets,
+        );
+
+        // Pre-compute hybrid KPI-Scorecard helper properties
+        $revStr = number_format((float) $financialMetrics['totalRevenue'], 4, '.', '');
+        $netStr = number_format((float) $financialMetrics['netIncome'], 4, '.', '');
+        $netMarginPct = bccomp($revStr, '0.0000', 4) > 0
+            ? round((float) bcdiv($netStr, $revStr, 6) * 100, 1)
+            : 0.0;
+
+        $cashTotalStr = bcadd(
+            number_format((float) $financialMetrics['cashOnHand'], 4, '.', ''),
+            number_format((float) $financialMetrics['cashInBank'], 4, '.', ''),
+            4
+        );
+        $apStr = number_format((float) $financialMetrics['outstandingAP'], 4, '.', '');
+        $hasAp = bccomp($apStr, '0.0000', 4) > 0;
+        $liquidityCoverage = $hasAp
+            ? round((float) bcdiv($cashTotalStr, $apStr, 4), 2)
+            : 99.9;
+
+        // ─── 7. User Context (request-scoped) ────────────────────────────────────────
         $currentUser = auth()->user();
 
         return view('accounting.dashboard', array_merge($financialMetrics, [
+            // Scorecard & Hybrid KPI properties
+            'scorecard'            => $scorecard,
+            'netMarginPct'         => $netMarginPct,
+            'liquidityCoverage'    => $liquidityCoverage,
+            'hasAp'                => $hasAp,
             // Chart data
             'chartMonths'   => json_encode($months, JSON_THROW_ON_ERROR),
             'chartRevenue'  => json_encode($revenueChart, JSON_THROW_ON_ERROR),

@@ -74,12 +74,23 @@
       $lockoutSeconds = (int) $matches[1];
     }
   }
+
+  $isIdleTimeout = ! $errors->any() && (
+      session('session_expired') !== null 
+      || request()->query('reason') === 'idle' 
+      || request()->query('expired') === '1' 
+      || request()->query('idle') === '1'
+  );
+
+  $idleMessage = session('session_expired') 
+      ?? 'Your session was automatically terminated because you were idling for 3 minutes. Please sign in again.';
 @endphp
 <body 
   x-data="{ 
     helpdeskOpen: false,
     legalModalOpen: false,
     legalActiveTab: 'terms',
+    idleTimeoutModalOpen: {{ $isIdleTimeout ? 'true' : 'false' }},
     darkMode: document.documentElement.classList.contains('dark'),
     lockoutRemaining: {{ $lockoutSeconds }},
     lockoutTotal: {{ $lockoutSeconds > 0 ? $lockoutSeconds : 60 }},
@@ -93,6 +104,26 @@
         return `${m}m ${s < 10 ? '0' : ''}${s}s`;
       }
       return `${s}s`;
+    },
+    dismissIdleModal() {
+      this.idleTimeoutModalOpen = false;
+      try {
+        sessionStorage.setItem('idle_modal_dismissed', '1');
+      } catch (e) {}
+      if (window.history && window.history.replaceState) {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('reason') || url.searchParams.has('expired') || url.searchParams.has('idle')) {
+          url.searchParams.delete('reason');
+          url.searchParams.delete('expired');
+          url.searchParams.delete('idle');
+          const cleanPath = url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : '');
+          window.history.replaceState({}, document.title, cleanPath);
+        }
+      }
+      this.$nextTick(() => {
+        const emailInput = document.getElementById('login-email');
+        if (emailInput) { emailInput.focus(); }
+      });
     },
     initLockout() {
       if (this.lockoutRemaining > 0) {
@@ -115,9 +146,31 @@
       }
     }
   }" 
-  x-init="initLockout()"
+  x-init="
+    initLockout();
+    try {
+      if (sessionStorage.getItem('idle_modal_dismissed') === '1') {
+        idleTimeoutModalOpen = false;
+      }
+    } catch (e) {}
+    if (window.history && window.history.replaceState) {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('reason') || url.searchParams.has('expired') || url.searchParams.has('idle')) {
+        url.searchParams.delete('reason');
+        url.searchParams.delete('expired');
+        url.searchParams.delete('idle');
+        const cleanPath = url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : '');
+        window.history.replaceState({}, document.title, cleanPath);
+      }
+    }
+  "
   class="h-full bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-100 antialiased selection:bg-emerald-500 selection:text-white"
 >
+  @if(session('session_expired') && ! $errors->any())
+    <script>
+      try { sessionStorage.removeItem('idle_modal_dismissed'); } catch (e) {}
+    </script>
+  @endif
 
   <div class="min-h-screen flex flex-col lg:flex-row">
     
@@ -200,11 +253,20 @@
         @endif
 
         <!-- Session Expired Alert -->
-        @if(session('session_expired'))
+        @if($isIdleTimeout)
           <div class="mt-5 rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4 text-xs text-amber-800 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300" role="alert">
-            <div class="flex items-center gap-2.5">
-              <i class="ph-bold ph-clock-countdown text-lg text-amber-600 dark:text-amber-400 shrink-0"></i>
-              <span>{{ session('session_expired') }}</span>
+            <div class="flex items-center justify-between gap-2.5">
+              <div class="flex items-center gap-2.5">
+                <i class="ph-bold ph-clock-countdown text-lg text-amber-600 dark:text-amber-400 shrink-0"></i>
+                <span>{{ $idleMessage }}</span>
+              </div>
+              <button 
+                type="button" 
+                @click="idleTimeoutModalOpen = true" 
+                class="shrink-0 text-[11px] font-bold text-amber-700 dark:text-amber-300 underline hover:text-amber-900 dark:hover:text-white cursor-pointer"
+              >
+                View Notice
+              </button>
             </div>
           </div>
         @endif
@@ -289,7 +351,7 @@
         @endif
 
         <!-- Login Form -->
-        <form id="login-form" method="POST" action="{{ route('login.post') }}" novalidate class="mt-6 space-y-4">
+        <form id="login-form" method="POST" action="{{ route('login.post') }}" novalidate class="mt-6 space-y-4" @submit="try { sessionStorage.setItem('idle_modal_dismissed', '1'); } catch (e) {}">
           @csrf
           <input type="hidden" name="device_uuid" id="login-device-uuid">
 
@@ -435,6 +497,9 @@
 
   <!-- Hospital MIS Support Directory Modal (Alpine.js) -->
   <x-auth-helpdesk-modal />
+
+  <!-- Hospital Security Idle Timeout Modal (Alpine.js) -->
+  <x-auth-idle-modal />
 
   <!-- Workstation Device Binding & Input Scripts -->
   <script>

@@ -74,15 +74,18 @@
                 {{ is_numeric($value) ? number_format((float) $value) : $value }}
             @endif
         </div>
-        @if($trend !== null)
-            <span class="inline-flex items-center gap-1 text-xs font-semibold {{ $trendUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
-                <i class="ph-bold {{ $trendUp ? 'ph-trend-up' : 'ph-trend-down' }}"></i> {{ $trend }}
-            </span>
-        @elseif($badge !== null)
-            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $palette['bg'] }} {{ $palette['text'] }} ring-1 {{ $palette['ring'] }}">
-                {{ $badge }}
-            </span>
-        @endif
+        <div class="flex flex-wrap items-center justify-end gap-1.5">
+            @if($badge !== null)
+                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $palette['bg'] }} {{ $palette['text'] }} ring-1 {{ $palette['ring'] }}">
+                    {{ $badge }}
+                </span>
+            @endif
+            @if($trend !== null)
+                <span class="inline-flex items-center gap-1 text-xs font-semibold {{ $trendUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
+                    <i class="ph-bold {{ $trendUp ? 'ph-trend-up' : 'ph-trend-down' }}"></i> {{ $trend }}
+                </span>
+            @endif
+        </div>
     </div>
     @if($subtitle)
         <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $subtitle }}</p>

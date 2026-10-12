@@ -1,51 +1,153 @@
 /**
- * idle-monitor.js — Hospital FMS Idle Session Timeout Controller
+ * idle-monitor.js — Hospital FMS Silent Idle Inactivity & Mouse Activity Tracker
  *
- * Tracks user activity and enforces a 3-minute (180s) idle timeout.
- * - At T-60s remaining: triggers warning countdown modal (60s countdown)
- * - At T-0: submits a logout POST to invalidate the server session
- * - On active user interaction: pings /session/heartbeat (with touch: true, max once per 30s)
- * - Periodic background check: every 10s checks displacement and syncs remaining seconds (with touch: false)
- * - Stay Logged In button: immediately pings /session/heartbeat with touch: true and resets 3-minute timer
- *
- * Server-side IdleSessionTimeout middleware is the hard enforcement mechanism (180s).
+ * Tracks mouse movements, clicks, scrolls, and keystrokes to detect user inactivity.
+ * - Enforces a strict 3-minute (180s) inactivity limit.
+ * - Tracks genuine mouse movements (evaluating X/Y coordinate displacement).
+ * - Tracks mouse clicks, wheel scrolling, touch interactions, and keystrokes.
+ * - Continuously evaluates idle duration on a 1-second interval loop.
+ * - Immediately checks on window focus / tab visibility change (preventing background tab throttling delays).
+ * - Synchronizes across multiple browser tabs via localStorage.
+ * - Refreshes server session via /session/heartbeat (touch: true, throttled to 30s).
+ * - Passively checks displacement & multi-tab state every 15s (touch: false).
+ * - NO warning modal or countdown is shown before logout.
+ * - After 3 minutes of zero mouse/user activity, immediately force-terminates the session
+ *   and redirects to the login page where the explanatory modal is presented.
  */
 (function () {
   'use strict';
 
   // ── Configuration ──────────────────────────────────────────────────────────
   const IDLE_TIMEOUT_MS            = 3 * 60 * 1000; // 3 minutes = 180,000 ms
-  const WARNING_BEFORE_MS          = 60 * 1000;     // 60 seconds warning before expiry
-  const ACTIVITY_TOUCH_INTERVAL_MS = 30 * 1000;     // Send touch ping at most once per 30s during continuous activity
-  const STATUS_SYNC_INTERVAL_MS    = 10 * 1000;     // Check displacement/sync passively every 10s
+  const ACTIVITY_TOUCH_INTERVAL_MS = 30 * 1000;     // Throttled server touch ping (max once per 30s during continuous activity)
+  const STATUS_SYNC_INTERVAL_MS    = 15 * 1000;     // Passive check every 15s
+  const STORAGE_KEY                = 'fms_last_activity_time';
 
-  // Read CSRF token from meta tag
+  // CSRF token from document meta tag
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 
   // ── State ──────────────────────────────────────────────────────────────────
-  let idleTimer      = null;
-  let warningTimer   = null;
-  let countdownTimer = null;
-  let lastTouchPing  = 0;
-  let warningShown   = false;
-  let isLoggingOut   = false;
+  let lastActivityTime = Date.now();
+  let lastMouseX       = null;
+  let lastMouseY       = null;
+  let lastTouchPing    = 0;
+  let isLoggingOut     = false;
+  let tickerInterval   = null;
+  let syncInterval     = null;
+  let activityDebounce = null;
 
-  // ── DOM References (injected by layouts/app.blade.php) ───────────────────────
-  const modal       = document.getElementById('idleTimeoutModal');
-  const countdownEl = document.getElementById('idle-countdown-seconds');
-  const stayBtn     = document.getElementById('idle-stay-logged-in');
-  const logoutBtn   = document.getElementById('idle-logout-now');
-  const logoutForm  = document.getElementById('idle-logout-form');
+  // Initialize stored activity timestamp
+  try {
+    const existingStored = parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
+    if (!existingStored || isNaN(existingStored) || existingStored < Date.now() - IDLE_TIMEOUT_MS) {
+      localStorage.setItem(STORAGE_KEY, String(Date.now()));
+    } else {
+      lastActivityTime = existingStored;
+    }
+  } catch (_) {}
 
-  if (! modal) return; // Guard: only execute on authenticated pages containing the modal
+  // ── Force Logout ───────────────────────────────────────────────────────────
+  function forceLogout() {
+    if (isLoggingOut) return;
+    isLoggingOut = true;
 
-  // ── Heartbeat & Displacement Detection ──────────────────────────────────────
+    // Clear background timers
+    if (tickerInterval) clearInterval(tickerInterval);
+    if (syncInterval) clearInterval(syncInterval);
+
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem('idle_modal_dismissed');
+    } catch (_) {}
+
+    // Hide any navigation loaders
+    if (typeof window.hideNavigationLoader === 'function') {
+      try {
+        window.hideNavigationLoader();
+      } catch (_) {}
+    }
+
+    console.warn('[FMS Idle Monitor] 3 minutes of inactivity reached without mouse/user activity. Forcefully terminating session...');
+
+    // Redirect to logout endpoint with idle reason
+    try {
+      window.location.replace('/logout?reason=idle');
+    } catch (_) {
+      window.location.href = '/logout?reason=idle';
+    }
+
+    // Safety fallback directly to login if navigation is delayed
+    setTimeout(() => {
+      window.location.replace('/login?reason=idle&expired=1');
+    }, 1200);
+  }
+
+  // ── Activity Registration ──────────────────────────────────────────────────
+  function recordUserActivity(source = 'activity') {
+    if (isLoggingOut) return;
+
+    const now = Date.now();
+    lastActivityTime = now;
+
+    try {
+      localStorage.setItem(STORAGE_KEY, String(now));
+    } catch (_) {}
+
+    // Debounce server touch ping so we don't overwhelm network on every mousemove
+    if (!activityDebounce) {
+      activityDebounce = setTimeout(() => {
+        activityDebounce = null;
+        sendHeartbeat({ touch: true });
+      }, 500);
+    }
+  }
+
+  // Mouse move handler (requires genuine displacement to avoid synthetic jitter)
+  function onMouseMove(e) {
+    if (lastMouseX === null || lastMouseY === null) {
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+      recordUserActivity('mouse_first');
+      return;
+    }
+
+    // Check if mouse actually moved
+    if (e.clientX !== lastMouseX || e.clientY !== lastMouseY) {
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+      recordUserActivity('mouse_move');
+    }
+  }
+
+  // ── Inactivity Evaluator (Runs every 1 second) ───────────────────────────────
+  function evaluateInactivity() {
+    if (isLoggingOut) return;
+
+    const now = Date.now();
+    let storedTime = 0;
+    try {
+      storedTime = parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
+    } catch (_) {}
+
+    // Most recent interaction across current tab or other tabs
+    const effectiveLastActivity = Math.max(lastActivityTime, isNaN(storedTime) ? 0 : storedTime);
+    const idleElapsedMs = now - effectiveLastActivity;
+
+    // Check if 3 minutes (180,000 ms) have passed without activity
+    if (idleElapsedMs >= IDLE_TIMEOUT_MS) {
+      forceLogout();
+    }
+  }
+
+  // ── Server Heartbeat & Sync ────────────────────────────────────────────────
   function sendHeartbeat(options = {}) {
+    if (isLoggingOut) return;
+
     const isTouch = Boolean(options.touch);
     const force   = Boolean(options.force);
     const now     = Date.now();
 
-    // Throttle user-activity touches to at most once per ACTIVITY_TOUCH_INTERVAL_MS unless forced
+    // Throttle user-activity touches to at most once per ACTIVITY_TOUCH_INTERVAL_MS
     if (isTouch && !force && (now - lastTouchPing < ACTIVITY_TOUCH_INTERVAL_MS)) {
       return;
     }
@@ -69,192 +171,94 @@
     })
       .then(response => {
         if (response.status === 401) {
-          // Displaced by concurrent login or session expired on server
+          // Session expired or displaced on server
           return response.json().then(data => {
-            window.location.href = data.redirect_url || '/login?expired=1';
+            window.location.replace(data.redirect_url || '/login?reason=idle&expired=1');
           }).catch(() => {
-            window.location.href = '/login?expired=1';
+            window.location.replace('/login?reason=idle&expired=1');
           });
         }
 
         if (response.ok) {
           return response.json().then(data => {
-            handleServerSync(data);
+            if (data && typeof data.remaining === 'number') {
+              if (data.remaining <= 0) {
+                forceLogout();
+              }
+            }
           });
         }
       })
       .catch(() => {
-        // Silently swallow network dropouts — client timers and server middleware will enforce expiry
+        // Silently swallow network dropouts
       });
   }
 
-  // Handle server sync response (supports multi-tab synchronization)
-  function handleServerSync(data) {
-    if (!data || typeof data.remaining !== 'number') return;
+  // ── Event Listeners ────────────────────────────────────────────────────────
+  // Track mouse interactions
+  window.addEventListener('mousemove', onMouseMove, { passive: true });
+  window.addEventListener('mousedown', () => recordUserActivity('mouse_down'), { passive: true });
+  window.addEventListener('mouseup', () => recordUserActivity('mouse_up'), { passive: true });
+  window.addEventListener('click', () => recordUserActivity('click'), { passive: true });
+  window.addEventListener('dblclick', () => recordUserActivity('dblclick'), { passive: true });
+  window.addEventListener('contextmenu', () => recordUserActivity('contextmenu'), { passive: true });
+  window.addEventListener('wheel', () => recordUserActivity('wheel'), { passive: true });
 
-    const remainingSec = data.remaining;
+  // Track keyboard & touch
+  window.addEventListener('keydown', () => recordUserActivity('keydown'), { passive: true });
+  window.addEventListener('keyup', () => recordUserActivity('keyup'), { passive: true });
+  window.addEventListener('touchstart', () => recordUserActivity('touchstart'), { passive: true });
+  window.addEventListener('touchmove', () => recordUserActivity('touchmove'), { passive: true });
+  window.addEventListener('scroll', () => recordUserActivity('scroll'), { passive: true });
 
-    // If server says we have <= 60 seconds remaining and modal not shown, display warning
-    if (remainingSec <= 60 && !warningShown) {
-      showWarningModal(remainingSec);
-    } else if (remainingSec > 60 && warningShown) {
-      // User performed an action in another tab! Dismiss warning modal and sync local timer
-      hideWarningModal();
-      resetIdleTimer(remainingSec * 1000);
+  // Tab visibility & Window focus (ensures immediate evaluation when switching back to tab)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      evaluateInactivity();
     }
-  }
+  });
+  window.addEventListener('focus', evaluateInactivity);
+  window.addEventListener('pageshow', evaluateInactivity);
 
-  // Periodic passive check every 10 seconds (detects displacement & multi-tab state without resetting activity)
-  setInterval(() => {
+  // Synchronize across multiple browser tabs
+  window.addEventListener('storage', (e) => {
+    if (e.key === STORAGE_KEY) {
+      if (!e.newValue) {
+        // Another tab logged out
+        forceLogout();
+      } else {
+        const remoteTime = parseInt(e.newValue, 10);
+        if (!isNaN(remoteTime)) {
+          lastActivityTime = Math.max(lastActivityTime, remoteTime);
+        }
+      }
+    }
+  });
+
+  // ── Active Background Loops ────────────────────────────────────────────────
+  // High-frequency 1-second evaluator loop: detects when 3 minutes elapse
+  tickerInterval = setInterval(evaluateInactivity, 1000);
+
+  // Passive server sync loop: every 15s checks server-side session status
+  syncInterval = setInterval(() => {
     if (!isLoggingOut) {
       sendHeartbeat({ touch: false });
     }
   }, STATUS_SYNC_INTERVAL_MS);
 
-  // ── Countdown Display ──────────────────────────────────────────────────────
-  function startCountdown(durationSeconds) {
-    stopCountdown();
-    let remaining = Math.max(0, Math.round(durationSeconds));
-
-    const updateDisplay = () => {
-      if (countdownEl) {
-        countdownEl.textContent = String(remaining);
-      }
-    };
-
-    updateDisplay();
-
-    countdownTimer = setInterval(() => {
-      remaining -= 1;
-      updateDisplay();
-
-      if (remaining <= 0) {
-        stopCountdown();
-        forceLogout();
-      }
-    }, 1000);
-  }
-
-  function stopCountdown() {
-    if (countdownTimer) {
-      clearInterval(countdownTimer);
-      countdownTimer = null;
-    }
-  }
-
-  // ── Warning Modal ──────────────────────────────────────────────────────────
-  function showWarningModal(secondsLeft = 60) {
-    if (warningShown) return;
-    warningShown = true;
-
-    // Trigger Alpine.js reactive display
-    window.dispatchEvent(new CustomEvent('open-idle-modal'));
-
-    // Start 1-second interval countdown
-    startCountdown(secondsLeft);
-  }
-
-  function hideWarningModal() {
-    if (!warningShown) return;
-    warningShown = false;
-
-    stopCountdown();
-
-    // Trigger Alpine.js reactive hide
-    window.dispatchEvent(new CustomEvent('close-idle-modal'));
-  }
-
-  // ── Force Logout ───────────────────────────────────────────────────────────
-  function forceLogout() {
-    if (isLoggingOut) return;
-    isLoggingOut = true;
-
-    hideWarningModal();
-
-    if (logoutForm) {
-      // Ensure hidden input reason=idle is present
-      let reasonInput = logoutForm.querySelector('input[name="reason"]');
-      if (!reasonInput) {
-        reasonInput = document.createElement('input');
-        reasonInput.type = 'hidden';
-        reasonInput.name = 'reason';
-        reasonInput.value = 'idle';
-        logoutForm.appendChild(reasonInput);
-      }
-      logoutForm.submit();
-    } else {
-      window.location.href = '/logout?reason=idle';
-    }
-
-    // Safety fallback if form submission hangs
-    setTimeout(() => {
-      window.location.href = '/login?session_expired=1';
-    }, 2500);
-  }
-
-  // ── Reset Idle Timer ───────────────────────────────────────────────────────
-  function resetIdleTimer(overrideDurationMs = null) {
-    clearTimeout(idleTimer);
-    clearTimeout(warningTimer);
-
-    const totalDuration = overrideDurationMs ?? IDLE_TIMEOUT_MS;
-    const warningDelay  = Math.max(0, totalDuration - WARNING_BEFORE_MS);
-
-    // Schedule warning modal (at 60s remaining)
-    warningTimer = setTimeout(() => {
-      showWarningModal(60);
-    }, warningDelay);
-
-    // Schedule automatic logout at exact expiration
-    idleTimer = setTimeout(() => {
+  // ── Developer & Diagnostics API ────────────────────────────────────────────
+  window.FmsIdleMonitor = {
+    getIdleSeconds: () => {
+      const stored = parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
+      const effective = Math.max(lastActivityTime, isNaN(stored) ? 0 : stored);
+      return Math.floor((Date.now() - effective) / 1000);
+    },
+    getLastActivity: () => new Date(lastActivityTime).toLocaleTimeString(),
+    simulateIdleTimeout: () => {
+      console.log('[FMS Idle Monitor] Simulating 3-minute idle timeout...');
       forceLogout();
-    }, totalDuration);
-  }
+    },
+  };
 
-  // ── Activity Event Listeners ───────────────────────────────────────────────
-  const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll', 'click'];
-  let activityDebounce = null;
-
-  function onActivity() {
-    // If warning modal is already shown, do NOT passively dismiss with mousemove —
-    // user must deliberately click "I'm Still Here"
-    if (warningShown) return;
-
-    if (activityDebounce) return;
-    activityDebounce = setTimeout(() => {
-      activityDebounce = null;
-      sendHeartbeat({ touch: true });
-      resetIdleTimer();
-    }, 500);
-  }
-
-  ACTIVITY_EVENTS.forEach(event => {
-    document.addEventListener(event, onActivity, { passive: true });
-  });
-
-  // ── Stay Logged In Button ──────────────────────────────────────────────────
-  if (stayBtn) {
-    stayBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      // Force immediate server session touch
-      sendHeartbeat({ touch: true, force: true });
-      hideWarningModal();
-      resetIdleTimer();
-
-      if (typeof window.showToast === 'function') {
-        window.showToast('Session renewed. Inactivity timer reset.', 'info');
-      }
-    });
-  }
-
-  // ── Logout Now Button ──────────────────────────────────────────────────────
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      forceLogout();
-    });
-  }
-
-  // ── Init on page load ──────────────────────────────────────────────────────
-  resetIdleTimer();
+  console.info('[FMS Security] Silent 3-minute idle monitor active. Tracking mouse and keyboard interaction.');
 })();

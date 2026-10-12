@@ -39,7 +39,10 @@ final class LoginController extends Controller
      */
     public function login(Request $request): RedirectResponse
     {
-        // 1. Normalize email input (trim whitespace and convert to lowercase)
+        // 1. Clear any idle session expired flashes when a user submits credentials
+        $request->session()->forget('session_expired');
+
+        // 2. Normalize email input (trim whitespace and convert to lowercase)
         $rawEmail        = (string) $request->input('email', '');
         $normalizedEmail = Str::lower(trim($rawEmail));
         $request->merge(['email' => $normalizedEmail]);
@@ -64,7 +67,7 @@ final class LoginController extends Controller
                 userAgent:   $request->userAgent()
             );
 
-            return back()->withErrors([
+            return redirect()->route('login')->withErrors([
                 'email' => "Too many authentication attempts. Please try again in {$seconds} seconds.",
             ])->with('lockout_seconds', $seconds)->onlyInput('email');
         }
@@ -93,7 +96,7 @@ final class LoginController extends Controller
                     userAgent:   $request->userAgent()
                 );
 
-                return back()->withErrors([
+                return redirect()->route('login')->withErrors([
                     'email' => 'This hospital user account has been suspended by an administrator. Please contact the CFO.',
                 ])->onlyInput('email');
             }
@@ -222,7 +225,7 @@ final class LoginController extends Controller
             userAgent:   $request->userAgent()
         );
 
-        return back()->withErrors([
+        return redirect()->route('login')->withErrors([
             'email' => 'The provided credentials do not match our registered hospital records.',
         ])->onlyInput('email');
     }
@@ -259,10 +262,10 @@ final class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        $response = redirect()->route('login');
+        $response = redirect()->route('login', $isIdle ? ['reason' => 'idle', 'expired' => 1] : []);
 
         if ($isIdle) {
-            $response->with('session_expired', 'Your session expired due to inactivity (3 minutes). Please sign in again.');
+            $response->with('session_expired', 'Your session was automatically terminated because you were idling for 3 minutes. Please sign in again.');
         }
 
         if ($user) {

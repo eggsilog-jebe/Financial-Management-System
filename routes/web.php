@@ -125,7 +125,7 @@ Route::middleware('auth')->group(function () {
         $idleSeconds        = max(0, now()->getTimestamp() - $lastActivityCarbon->getTimestamp());
         $remaining          = max(0, $idleThreshold - $idleSeconds);
 
-        if ($idleSeconds > $idleThreshold) {
+        if ($idleSeconds >= $idleThreshold) {
             $user = auth()->user();
             if ($user) {
                 \App\Models\ActivityLog::logAuth(
@@ -147,8 +147,8 @@ Route::middleware('auth')->group(function () {
 
             return response()->json([
                 'status'       => 'expired',
-                'message'      => 'Session expired due to inactivity.',
-                'redirect_url' => route('login', ['expired' => 1]),
+                'message'      => 'Session expired due to inactivity (3 minutes).',
+                'redirect_url' => route('login', ['reason' => 'idle', 'expired' => 1]),
             ], 401);
         }
 

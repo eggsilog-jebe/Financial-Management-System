@@ -151,11 +151,10 @@
             }
           }
         });
-        this.$watch('idleModalOpen', () => this.syncModalLock());
         this.$watch('systemModal.open', () => this.syncModalLock());
       },
       syncModalLock() {
-        if (this.idleModalOpen || (this.systemModal && this.systemModal.open)) {
+        if (this.systemModal && this.systemModal.open) {
           document.body.classList.add('overflow-hidden', 'modal-open');
         } else {
           document.body.classList.remove('overflow-hidden', 'modal-open');
@@ -167,12 +166,9 @@
         title: 'System Notification',
         message: '',
         icon: 'ph-info'
-      },
-      idleModalOpen: false
+      }
     }"
     @keydown.escape.window="systemModal.open = false"
-    @open-idle-modal.window="idleModalOpen = true"
-    @close-idle-modal.window="idleModalOpen = false"
     @theme-applied.window="darkMode = $event.detail.isDark"
     class="h-full bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-100 antialiased selection:bg-emerald-500 selection:text-white"
     data-module="@yield('module', 'main')" 
@@ -249,93 +245,6 @@
 
     <!-- Toast Notification Container -->
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none" role="status" aria-live="polite"></div>
-
-    {{-- ── Idle Session Timeout Warning Modal (Alpine.js + Backdrop Blur) ────────────── --}}
-    <div 
-      id="idleTimeoutModal"
-      x-show="idleModalOpen" 
-      x-cloak
-      class="fixed inset-0 z-50 overflow-y-auto" 
-      aria-labelledby="idleTimeoutModalLabel" 
-      role="dialog" 
-      aria-modal="true"
-    >
-      <div 
-        x-show="idleModalOpen"
-        x-transition:enter="ease-out duration-300"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="ease-in duration-200"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        class="fixed inset-0 bg-slate-950/60 backdrop-blur-md transition-opacity"
-      ></div>
-
-      <div class="fixed inset-0 z-10 flex min-h-full items-center justify-center p-4 pointer-events-none">
-        <div 
-          x-show="idleModalOpen"
-          x-transition:enter="ease-out duration-300"
-          x-transition:enter-start="opacity-0 translate-y-4 sm:scale-95"
-          x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
-          x-transition:leave="ease-in duration-200"
-          x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
-          x-transition:leave-end="opacity-0 translate-y-4 sm:scale-95"
-          class="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800 pointer-events-auto"
-        >
-          <div class="flex items-center gap-3">
-            <span class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 ring-1 ring-amber-500/20 dark:bg-amber-950/50 dark:text-amber-400">
-              <i class="ph-bold ph-clock-countdown text-2xl"></i>
-            </span>
-            <div>
-              <h3 class="text-base font-bold text-slate-900 dark:text-white" id="idleTimeoutModalLabel">Session Expiring Soon</h3>
-              <p class="text-xs text-amber-600 dark:text-amber-400 font-medium">Hospital Security &bull; Inactivity Detected</p>
-            </div>
-          </div>
-
-          <div class="mt-4">
-            <p class="text-xs text-slate-600 dark:text-slate-300">
-              Your HIMS session will automatically sign out to protect patient health records and financial data per RA 10173:
-            </p>
-
-            <div class="my-5 flex justify-center">
-              <div class="flex flex-col items-center justify-center rounded-2xl bg-amber-50 px-8 py-4 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:ring-amber-800/40">
-                <span id="idle-countdown-seconds" class="font-mono text-4xl font-bold tabular-nums text-amber-700 dark:text-amber-400">60</span>
-                <span class="mt-1 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-500">SECONDS REMAINING</span>
-              </div>
-            </div>
-
-            <p class="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-              <i class="ph-bold ph-shield-warning text-amber-500 text-sm"></i>
-              <span>Active unsaved drafts or terminal drawers remain secure.</span>
-            </p>
-          </div>
-
-          <div class="mt-6 flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-            <button 
-              type="button" 
-              id="idle-logout-now"
-              class="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors"
-            >
-              Sign Out Now
-            </button>
-            <button 
-              type="button" 
-              id="idle-stay-logged-in"
-              class="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-amber-700 ring-1 ring-amber-600/20 transition-all"
-            >
-              <i class="ph-bold ph-hand-waving"></i>
-              <span>I'm Still Here</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Hidden form for automated idle logout POST -->
-    <form id="idle-logout-form" method="POST" action="{{ route('logout') }}" class="hidden">
-      @csrf
-      <input type="hidden" name="reason" value="idle">
-    </form>
 
     {{-- ── Global Executive Alert Modal (Alpine.js) ─────────────────────────────── --}}
     <div 
@@ -477,7 +386,7 @@
     </script>
 
     <!-- Session Security & Idle Timeout Monitor -->
-    <script src="{{ asset('assets/js/auth/idle-monitor.js') }}"></script>
+    <script src="{{ asset('assets/js/auth/idle-monitor.js') }}?v={{ file_exists(public_path('assets/js/auth/idle-monitor.js')) ? filemtime(public_path('assets/js/auth/idle-monitor.js')) : time() }}"></script>
 
     <!-- Executive Navigation & Submodule Loading Modal Controller -->
     <script>
@@ -613,7 +522,6 @@
           const form = e.target;
           if (!form || form.dataset.noLoader !== undefined || form.target === '_blank') return;
           if (e.defaultPrevented) return;
-          if (form.id === 'idle-logout-form') return; // Idle logout has its own workflow
 
           showNavigationLoader('Processing...', 'Submitting hospital transaction securely...');
         });

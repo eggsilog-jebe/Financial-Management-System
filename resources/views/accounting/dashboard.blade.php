@@ -59,43 +59,55 @@
     </div>
   </div>
 
-  {{-- ─── TIER 1: KPI Stat Cards (4 cards) ──────────────────────────────────── --}}
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+  {{-- ─── TIER 1: Hybrid KPI & Scorecard Stat Cards (4 cards) ───────────────── --}}
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
 
-    {{-- Hospital Revenue --}}
+    {{-- Hospital Revenue (KPI + Scorecard Margin Evaluation) --}}
     <x-stat-card
       title="Total Revenue"
       :value="$totalRevenue"
       icon="ph-trend-up"
       color="emerald"
+      :badge="$totalRevenue > 0 ? ($netMarginPct >= 10.0 ? 'Optimal' : ($netMarginPct >= 0.0 ? 'Narrow' : 'Deficit')) : 'Active'"
+      :trend="$totalRevenue > 0 ? (($netMarginPct >= 0 ? '+' : '') . $netMarginPct . '% Margin') : null"
+      :trendUp="$netMarginPct >= 0"
       subtitle="Clinical, Diagnostic & Pharmacy"
     />
 
-    {{-- Combined Cash Position --}}
+    {{-- Combined Cash Position (KPI + Scorecard Liquidity Coverage) --}}
     <x-stat-card
       title="Cash Position"
       :value="$cashOnHand + $cashInBank"
       icon="ph-vault"
       color="blue"
+      :badge="$hasAp ? ($liquidityCoverage >= 1.5 ? 'Strong Liquidity' : ($liquidityCoverage >= 1.0 ? 'Adequate' : 'Tight Buffer')) : '100% Liquid'"
+      :trend="$hasAp ? ($liquidityCoverage . 'x AP Coverage') : 'No Open AP'"
+      :trendUp="$liquidityCoverage >= 1.0"
       subtitle="On Hand + Land Bank AGDB"
     />
 
-    {{-- Outstanding AR --}}
+    {{-- Outstanding AR (KPI + Scorecard Exposure Grading) --}}
     <x-stat-card
       title="Outstanding AR"
       :value="$outstandingAR"
       icon="ph-clock"
       color="amber"
+      :badge="$outstandingAR > 0 ? 'Active Claims' : 'Fully Settled'"
+      :trend="$outstandingAR > 0 ? 'Managed Risk' : 'Optimal'"
+      :trendUp="true"
       subtitle="Open Patient & HMO Claims"
     />
 
-    {{-- Undeposited Cash --}}
+    {{-- Undeposited Cash Collections (KPI + COA Circular 2021-014 Scorecard) --}}
     <x-stat-card
-      title="Undeposited"
+      title="Undeposited Cash"
       :value="$undepositedCollections"
       icon="{{ $isCoaIntactCompliant ? 'ph-check-circle' : 'ph-warning-circle' }}"
       color="{{ $isCoaIntactCompliant ? 'teal' : 'rose' }}"
-      subtitle="{{ $isCoaIntactCompliant ? 'COA 2021-014 Compliant' : 'Remittance Overdue' }}"
+      :badge="$isCoaIntactCompliant ? 'COA Compliant' : 'Remittance Overdue'"
+      :trend="$isCoaIntactCompliant ? '≤ ₱10k Limit' : '> ₱10k Limit'"
+      :trendUp="$isCoaIntactCompliant"
+      subtitle="{{ $isCoaIntactCompliant ? 'COA Circular 2021-014 Remitted' : 'Action Required: Remittance Due' }}"
     />
 
   </div>
@@ -183,6 +195,118 @@
       </div>
     </div>
 
+  </div>
+
+  {{-- ─── TIER 2.2: Executive Hospital Financial & Operational Scorecard ─────── --}}
+  <div class="rounded-2xl bg-white ring-1 ring-slate-200/80 overflow-hidden dark:bg-slate-900 dark:ring-slate-800 shadow-sm">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800 gap-3">
+      <div class="flex items-center gap-3">
+        <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20 dark:bg-emerald-950/50 dark:text-emerald-400">
+          <i class="ph-bold ph-target text-lg"></i>
+        </span>
+        <div>
+          <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            Executive Hospital Financial &amp; Operational Scorecard
+          </h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Multi-perspective target evaluation across GAAP profitability, COA intact remittance, UHC coverage &amp; budget ceilings</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5">
+        <div class="text-right hidden md:block">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Benchmark Index</span>
+          <div class="text-xs font-semibold text-slate-700 dark:text-slate-300">
+            {{ $scorecard->optimalCount }}/{{ $scorecard->totalMetrics }} Standards Met
+          </div>
+        </div>
+        <span class="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold
+          @if($scorecard->compositeBadgeColor === 'emerald') bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20 dark:bg-emerald-950/40 dark:text-emerald-300
+          @elseif($scorecard->compositeBadgeColor === 'teal') bg-teal-50 text-teal-700 ring-1 ring-teal-600/20 dark:bg-teal-950/40 dark:text-teal-300
+          @elseif($scorecard->compositeBadgeColor === 'amber') bg-amber-50 text-amber-700 ring-1 ring-amber-600/20 dark:bg-amber-950/40 dark:text-amber-300
+          @else bg-rose-50 text-rose-700 ring-1 ring-rose-600/20 dark:bg-rose-950/40 dark:text-rose-300 @endif">
+          <i class="ph-bold ph-medal text-sm"></i>
+          <span>{{ $scorecard->compositeGrade }}</span>
+          <span class="font-mono ml-0.5 tabular-nums">({{ $scorecard->compositeScorePct }}%)</span>
+        </span>
+      </div>
+    </div>
+
+    {{-- Scorecard Perspectives Grid --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-100 dark:divide-slate-800">
+      @foreach($scorecard->perspectives as $perspectiveName => $items)
+        <div class="p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              @if($perspectiveName === 'Financial Health')
+                <i class="ph-bold ph-chart-line text-emerald-500"></i>
+              @elseif($perspectiveName === 'Treasury & Liquidity')
+                <i class="ph-bold ph-vault text-teal-500"></i>
+              @elseif($perspectiveName === 'Patient Care & Universal Health')
+                <i class="ph-bold ph-first-aid text-blue-500"></i>
+              @else
+                <i class="ph-bold ph-shield-check text-violet-500"></i>
+              @endif
+              {{ $perspectiveName }}
+            </h3>
+            <span class="text-[11px] font-mono text-slate-400">{{ count($items) }} Indicators</span>
+          </div>
+
+          <div class="space-y-3">
+            @foreach($items as $scItem)
+              <div class="rounded-xl bg-slate-50/70 p-3.5 ring-1 ring-slate-200/60 dark:bg-slate-800/40 dark:ring-slate-700/60 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                      <span class="text-xs font-bold text-slate-900 dark:text-white">{{ $scItem->metric }}</span>
+                      <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-mono font-medium bg-slate-200/70 text-slate-600 dark:bg-slate-700 dark:text-slate-300 whitespace-nowrap">
+                        Target: {{ $scItem->target }}
+                      </span>
+                    </div>
+                    @if($scItem->description)
+                      <p class="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">{{ $scItem->description }}</p>
+                    @endif
+                  </div>
+
+                  <div class="text-right flex flex-col items-end flex-shrink-0">
+                    <div class="flex items-baseline gap-1.5">
+                      <span class="font-mono text-sm font-bold text-slate-900 dark:text-white tabular-nums">{{ $scItem->actual }}</span>
+                      <span class="text-[10px] font-mono font-semibold {{ $scItem->status === 'CRITICAL' ? 'text-rose-600 dark:text-rose-400' : ($scItem->status === 'WARNING' ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400') }}">
+                        ({{ $scItem->variance }})
+                      </span>
+                    </div>
+                    <span class="mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold
+                      @if($scItem->badgeColor === 'emerald') bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20 dark:bg-emerald-950/40 dark:text-emerald-300
+                      @elseif($scItem->badgeColor === 'teal') bg-teal-50 text-teal-700 ring-1 ring-teal-600/20 dark:bg-teal-950/40 dark:text-teal-300
+                      @elseif($scItem->badgeColor === 'blue') bg-blue-50 text-blue-700 ring-1 ring-blue-600/20 dark:bg-blue-950/40 dark:text-blue-300
+                      @elseif($scItem->badgeColor === 'amber') bg-amber-50 text-amber-700 ring-1 ring-amber-600/20 dark:bg-amber-950/40 dark:text-amber-300
+                      @elseif($scItem->badgeColor === 'rose') bg-rose-50 text-rose-700 ring-1 ring-rose-600/20 dark:bg-rose-950/40 dark:text-rose-300
+                      @else bg-slate-100 text-slate-700 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 @endif">
+                      <i class="ph-bold {{ $scItem->icon }} text-[10px]"></i>
+                      {{ $scItem->statusLabel }}
+                    </span>
+                  </div>
+                </div>
+
+                {{-- Progress Bar --}}
+                @if($scItem->progressPct !== null)
+                  <div class="mt-2.5 h-1.5 w-full rounded-full bg-slate-200/80 dark:bg-slate-700 overflow-hidden">
+                    <div class="h-full rounded-full transition-all
+                      @if($scItem->badgeColor === 'emerald') bg-emerald-500
+                      @elseif($scItem->badgeColor === 'teal') bg-teal-500
+                      @elseif($scItem->badgeColor === 'blue') bg-blue-500
+                      @elseif($scItem->badgeColor === 'amber') bg-amber-500
+                      @elseif($scItem->badgeColor === 'rose') bg-rose-500
+                      @else bg-slate-400 @endif"
+                      style="width: {{ min(100.0, max(0.0, $scItem->progressPct)) }}%">
+                    </div>
+                  </div>
+                @endif
+              </div>
+            @endforeach
+          </div>
+        </div>
+      @endforeach
+    </div>
   </div>
 
   {{-- ─── TIER 2 (secondary): GL Balance Status + COA Compliance inline strip ─── --}}

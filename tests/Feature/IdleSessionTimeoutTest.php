@@ -47,7 +47,7 @@ final class IdleSessionTimeoutTest extends TestCase
             ])
             ->get('/accounting/dashboard');
 
-        $response->assertRedirect(route('login'));
+        $response->assertRedirect(route('login', ['reason' => 'idle', 'expired' => 1]));
         $response->assertSessionHas('session_expired');
         $this->assertGuest();
     }
@@ -63,7 +63,7 @@ final class IdleSessionTimeoutTest extends TestCase
 
         $response->assertStatus(401);
         $response->assertJson([
-            'message' => 'Session expired due to inactivity.',
+            'message' => 'Session expired due to inactivity (3 minutes).',
         ]);
         $this->assertGuest();
     }
@@ -128,7 +128,7 @@ final class IdleSessionTimeoutTest extends TestCase
         $response->assertStatus(401);
         $response->assertJson([
             'status'  => 'expired',
-            'message' => 'Session expired due to inactivity.',
+            'message' => 'Session expired due to inactivity (3 minutes).',
         ]);
         $this->assertGuest();
     }
@@ -141,8 +141,82 @@ final class IdleSessionTimeoutTest extends TestCase
             ])
             ->post('/logout', ['reason' => 'idle']);
 
-        $response->assertRedirect(route('login'));
+        $response->assertRedirect(route('login', ['reason' => 'idle', 'expired' => 1]));
         $response->assertSessionHas('session_expired');
         $this->assertGuest();
+    }
+
+    public function test_login_page_renders_idle_modal_when_redirected_with_idle_timeout(): void
+    {
+        $response = $this->withSession([
+            'session_expired' => 'Your session was automatically terminated because you were idling for 3 minutes. Please sign in again.',
+        ])->get(route('login', ['reason' => 'idle', 'expired' => 1]));
+
+        $response->assertOk();
+        // Alpine data initializes idleTimeoutModalOpen to true
+        $response->assertSee('idleTimeoutModalOpen: true', false);
+
+        // Modal content indicating 3 minutes idle
+        $response->assertSee('Session Forcefully Logged Out');
+        $response->assertSee('IDLING FOR 3 MINUTES');
+        $response->assertSee('3 MINS ELAPSED');
+        $response->assertSee('Return to Sign In');
+    }
+
+    public function test_authenticated_layout_does_not_render_warning_modal(): void
+    {
+        $response = $this->actingAs($this->user)
+            ->withSession([
+                'auth.2fa_passed'       => true,
+                'auth.last_activity_at' => now()->toIso8601String(),
+            ])
+            ->get('/accounting/dashboard');
+
+        $response->assertOk();
+        $response->assertDontSee('id="idleTimeoutModal"', false);
+        $response->assertDontSee('Session Expiring Soon');
+        $response->assertDontSee('SECONDS REMAINING');
+        $response->assertDontSee('id="idle-logout-form"', false);
+    }
+
+    public function test_login_page_renders_idle_modal_when_accessed_with_query_param_only(): void
+    {
+        $response = $this->get(route('login', ['reason' => 'idle']));
+
+        $response->assertOk();
+        $response->assertSee('idleTimeoutModalOpen: true', false);
+        $response->assertSee('IDLING FOR 3 MINUTES');
+    }
+
+    public function test_idle_timeout_modal_does_not_open_again_when_submitting_invalid_credentials(): void
+    {
+        // 1. Initial idle timeout landing
+        $response = $this->withSession([
+            'session_expired' => 'Your session was automatically terminated because you were idling for 3 minutes. Please sign in again.',
+        ])->get(route('login', ['reason' => 'idle', 'expired' => 1]));
+
+        $response->assertOk();
+        $response->assertSee('idleTimeoutModalOpen: true', false);
+
+        // 2. User submits invalid credentials from the idle login URL
+        $loginPostResponse = $this->from(route('login', ['reason' => 'idle', 'expired' => 1]))
+            ->post('/login', [
+                'email'    => 'unknown@hospital.gov.ph',
+                'password' => 'WrongPassword123!',
+            ]);
+
+        // Must redirect to clean /login, NOT back to the query param idle URL
+        $loginPostResponse->assertRedirect(route('login'));
+        $loginPostResponse->assertSessionHasErrors('email');
+        $loginPostResponse->assertSessionMissing('session_expired');
+
+        // 3. When viewing login page after failed attempt, modal must NOT open
+        $loginPageWithErrors = $this->withSession([
+            'errors' => session('errors'),
+        ])->get(route('login'));
+
+        $loginPageWithErrors->assertOk();
+        $loginPageWithErrors->assertSee('idleTimeoutModalOpen: false', false);
+        $loginPageWithErrors->assertDontSee('idleTimeoutModalOpen: true', false);
     }
 }
