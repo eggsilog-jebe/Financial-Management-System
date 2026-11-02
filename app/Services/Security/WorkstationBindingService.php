@@ -83,9 +83,11 @@ final class WorkstationBindingService
             str_contains($userAgent, 'Windows NT 10.0') || str_contains($userAgent, 'Windows NT 11.0') => 'Windows 10/11',
             str_contains($userAgent, 'Windows NT 6.3')  => 'Windows 8.1',
             str_contains($userAgent, 'Windows NT 6.1')  => 'Windows 7',
-            str_contains($userAgent, 'Macintosh')       => 'macOS',
+            str_contains($userAgent, 'iPad')            => 'iPadOS',
             str_contains($userAgent, 'iPhone')          => 'iOS Mobile',
             str_contains($userAgent, 'Android')         => 'Android Mobile',
+            str_contains($userAgent, 'Macintosh')       => 'macOS',
+            str_contains($userAgent, 'CrOS')            => 'ChromeOS',
             str_contains($userAgent, 'Linux')           => 'Linux Workstation',
             default                                     => 'Workstation Terminal',
         };
@@ -102,6 +104,7 @@ final class WorkstationBindingService
 
         return match (true) {
             str_contains($userAgent, 'Edg/')     => 'Microsoft Edge',
+            str_contains($userAgent, 'OPR/') || str_contains($userAgent, 'Opera') => 'Opera',
             str_contains($userAgent, 'Chrome/')  => 'Google Chrome',
             str_contains($userAgent, 'Firefox/') => 'Mozilla Firefox',
             str_contains($userAgent, 'Safari/') && ! str_contains($userAgent, 'Chrome') => 'Apple Safari',
@@ -110,15 +113,58 @@ final class WorkstationBindingService
     }
 
     /**
-     * Generate a default friendly workstation label based on platform, browser, and IP.
+     * Detect physical hardware form factor (Desktop, Laptop, Mobile, Tablet) from request hints & user agent.
+     */
+    public function detectDeviceType(Request $request): string
+    {
+        $hint = trim((string) (
+            $request->input('device_type')
+            ?? $request->header('X-Workstation-Device-Type')
+            ?? ($request->hasSession() ? $request->session()->get('auth.pending_device_type') : null)
+            ?? ''
+        ));
+
+        $normalizedHint = ucfirst(strtolower($hint));
+        if (in_array($normalizedHint, [
+            UserWorkstation::DEVICE_DESKTOP,
+            UserWorkstation::DEVICE_LAPTOP,
+            UserWorkstation::DEVICE_MOBILE,
+            UserWorkstation::DEVICE_TABLET,
+        ], true)) {
+            return $normalizedHint;
+        }
+
+        if ($normalizedHint === 'Phone') {
+            return UserWorkstation::DEVICE_MOBILE;
+        }
+
+        $secChMobile = (string) $request->header('Sec-CH-UA-Mobile', '');
+        if ($secChMobile === '?1') {
+            return UserWorkstation::DEVICE_MOBILE;
+        }
+
+        $userAgent = (string) ($request->userAgent() ?? '');
+        if ($userAgent === '') {
+            return UserWorkstation::DEVICE_DESKTOP;
+        }
+
+        return match (true) {
+            (bool) preg_match('/iPad|Tablet|PlayBook|Silk|(Android(?!.*Mobile))/i', $userAgent) => UserWorkstation::DEVICE_TABLET,
+            (bool) preg_match('/Mobile|iPhone|iPod|Android.*Mobile|Windows Phone|BlackBerry|Opera Mini|IEMobile/i', $userAgent) => UserWorkstation::DEVICE_MOBILE,
+            (bool) preg_match('/Macintosh.*Mac OS X|CrOS|Laptop|Notebook/i', $userAgent) => UserWorkstation::DEVICE_LAPTOP,
+            default => UserWorkstation::DEVICE_DESKTOP,
+        };
+    }
+
+    /**
+     * Generate a clean, non-redundant workstation label based on platform and browser (without IP address).
      */
     public function generateWorkstationLabel(Request $request): string
     {
         $platform = $this->detectPlatform($request->userAgent());
         $browser  = $this->detectBrowser($request->userAgent());
-        $ip       = $request->ip();
 
-        return "{$platform} ({$browser}) - {$ip}";
+        return "{$platform} ({$browser})";
     }
 
     /**
@@ -139,12 +185,19 @@ final class WorkstationBindingService
             ->first();
 
         if ($workstation) {
-            // Update last seen metadata
+            $detectedType = $this->detectDeviceType($request);
+            $cleanName    = $workstation->cleanWorkstationName();
+
+            // Update last seen metadata & ensure any legacy redundant IP suffix is cleaned
             $workstation->update([
-                'last_seen_at' => now(),
-                'ip_address'   => $request->ip(),
-                'platform'     => $this->detectPlatform($request->userAgent()),
-                'browser'      => $this->detectBrowser($request->userAgent()),
+                'workstation_name' => $cleanName,
+                'device_type'      => $request->filled('device_type') || empty($workstation->device_type)
+                    ? $detectedType
+                    : $workstation->device_type,
+                'last_seen_at'     => now(),
+                'ip_address'       => $request->ip(),
+                'platform'         => $this->detectPlatform($request->userAgent()),
+                'browser'          => $this->detectBrowser($request->userAgent()),
             ]);
 
             return match ($workstation->status) {
@@ -199,7 +252,8 @@ final class WorkstationBindingService
         ?string $customLabel = null
     ): UserWorkstation {
         $approvedCount = $user->approvedWorkstations()->count();
-        $label = $customLabel ?: $this->generateWorkstationLabel($request);
+        $label         = $customLabel ?: $this->generateWorkstationLabel($request);
+        $deviceType    = $this->detectDeviceType($request);
 
         /** @var UserWorkstation $workstation */
         $workstation = UserWorkstation::updateOrCreate(
@@ -209,6 +263,7 @@ final class WorkstationBindingService
             ],
             [
                 'workstation_name' => $label,
+                'device_type'      => $deviceType,
                 'platform'         => $this->detectPlatform($request->userAgent()),
                 'browser'          => $this->detectBrowser($request->userAgent()),
                 'ip_address'       => $request->ip(),
@@ -223,7 +278,7 @@ final class WorkstationBindingService
         ActivityLog::logAuth(
             event:       'workstation_auth_requested',
             user:        $user,
-            description: "Workstation authorization requested for user [{$user->name}] ({$user->role}) on [{$label}]. Approved count: {$approvedCount}/" . UserWorkstation::MAX_PER_USER,
+            description: "Workstation authorization requested for user [{$user->name}] ({$user->role}) on [{$label}] ({$deviceType}). Approved count: {$approvedCount}/" . UserWorkstation::MAX_PER_USER,
             ip:          $request->ip(),
             userAgent:   $request->userAgent()
         );
@@ -240,7 +295,8 @@ final class WorkstationBindingService
     public function approveWorkstation(
         UserWorkstation $workstation,
         User $admin,
-        ?string $customName = null
+        ?string $customName = null,
+        ?string $deviceType = null
     ): void {
         $user = $workstation->user;
 
@@ -255,9 +311,13 @@ final class WorkstationBindingService
             ]);
         }
 
+        $resolvedName = $customName ?: $workstation->cleanWorkstationName();
+        $resolvedType = $deviceType ?: $workstation->resolvedDeviceType();
+
         $workstation->update([
             'status'           => UserWorkstation::STATUS_APPROVED,
-            'workstation_name' => $customName ?: $workstation->workstation_name,
+            'workstation_name' => $resolvedName,
+            'device_type'      => $resolvedType,
             'approved_by'      => $admin->id,
             'approved_at'      => now(),
             'rejected_at'      => null,
@@ -269,7 +329,7 @@ final class WorkstationBindingService
         ActivityLog::logAuth(
             event:       'workstation_approved',
             user:        $user,
-            description: "Super Admin [{$admin->name}] approved workstation [{$workstation->workstation_name}] for user [{$user->name}].",
+            description: "Super Admin [{$admin->name}] approved workstation [{$workstation->workstation_name}] ({$resolvedType}) for user [{$user->name}].",
             ip:          request()->ip(),
             userAgent:   request()->userAgent()
         );
@@ -336,7 +396,7 @@ final class WorkstationBindingService
      */
     public function getPendingRequests(): Collection
     {
-        return UserWorkstation::with(['user'])
+        return UserWorkstation::with(['user' => fn ($q) => $q->withCount('approvedWorkstations')])
             ->pending()
             ->orderByDesc('updated_at')
             ->get();

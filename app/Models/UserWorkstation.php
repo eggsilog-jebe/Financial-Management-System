@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $user_id
  * @property string $device_uuid
  * @property string $workstation_name
+ * @property string|null $device_type
  * @property string|null $platform
  * @property string|null $browser
  * @property string|null $ip_address
@@ -39,12 +40,18 @@ final class UserWorkstation extends Model
     public const STATUS_REJECTED = 'rejected';
     public const STATUS_REVOKED  = 'revoked';
 
+    public const DEVICE_DESKTOP = 'Desktop';
+    public const DEVICE_LAPTOP  = 'Laptop';
+    public const DEVICE_MOBILE  = 'Mobile';
+    public const DEVICE_TABLET  = 'Tablet';
+
     public const MAX_PER_USER = 3;
 
     protected $fillable = [
         'user_id',
         'device_uuid',
         'workstation_name',
+        'device_type',
         'platform',
         'browser',
         'ip_address',
@@ -140,5 +147,62 @@ final class UserWorkstation extends Model
     public function isRevoked(): bool
     {
         return $this->status === self::STATUS_REVOKED;
+    }
+
+    /**
+     * Return a clean workstation display name stripped of any legacy redundant IP suffix.
+     */
+    public function cleanWorkstationName(): string
+    {
+        $raw = (string) $this->workstation_name;
+        $cleaned = (string) preg_replace('/\s*-\s*(?:\d{1,3}(?:\.\d{1,3}){3}|[0-9a-fA-F:]{2,})\s*$/', '', $raw);
+
+        return $cleaned !== '' ? $cleaned : $raw;
+    }
+
+    /**
+     * Resolve the normalized hardware form-factor category (Desktop, Laptop, Mobile, Tablet).
+     */
+    public function resolvedDeviceType(): string
+    {
+        if (! empty($this->device_type) && in_array($this->device_type, [self::DEVICE_DESKTOP, self::DEVICE_LAPTOP, self::DEVICE_MOBILE, self::DEVICE_TABLET], true)) {
+            return $this->device_type;
+        }
+
+        $platformLower = strtolower((string) ($this->platform ?? ''));
+        $nameLower     = strtolower((string) ($this->workstation_name ?? ''));
+
+        return match (true) {
+            str_contains($platformLower, 'mobile') || str_contains($platformLower, 'ios') || str_contains($platformLower, 'android') || str_contains($nameLower, 'phone') || str_contains($nameLower, 'mobile') => self::DEVICE_MOBILE,
+            str_contains($platformLower, 'ipad') || str_contains($platformLower, 'tablet') || str_contains($nameLower, 'tablet') || str_contains($nameLower, 'ipad') => self::DEVICE_TABLET,
+            str_contains($nameLower, 'laptop') || str_contains($nameLower, 'macbook') || str_contains($nameLower, 'notebook') => self::DEVICE_LAPTOP,
+            default => self::DEVICE_DESKTOP,
+        };
+    }
+
+    /**
+     * Human-readable label for the hardware form factor (e.g. "Laptop", "Desktop", "Phone", "Tablet").
+     */
+    public function deviceTypeLabel(): string
+    {
+        return match ($this->resolvedDeviceType()) {
+            self::DEVICE_MOBILE  => 'Phone',
+            self::DEVICE_LAPTOP  => 'Laptop',
+            self::DEVICE_TABLET  => 'Tablet',
+            default              => 'Desktop',
+        };
+    }
+
+    /**
+     * Phosphor icon class representing the hardware form factor.
+     */
+    public function deviceTypeIcon(): string
+    {
+        return match ($this->resolvedDeviceType()) {
+            self::DEVICE_MOBILE  => 'ph-device-mobile',
+            self::DEVICE_LAPTOP  => 'ph-laptop',
+            self::DEVICE_TABLET  => 'ph-device-tablet',
+            default              => 'ph-desktop',
+        };
     }
 }

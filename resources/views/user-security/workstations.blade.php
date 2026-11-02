@@ -219,8 +219,32 @@
                 </div>
               </td>
               <td class="py-3 px-4">
-                <div class="font-medium text-slate-900 dark:text-white">{{ $pw->workstation_name }}</div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">{{ $pw->platform ?? 'Unknown OS' }}</div>
+                @php
+                  $pwDeviceType  = $pw->resolvedDeviceType();
+                  $pwDeviceLabel = $pw->deviceTypeLabel();
+                  $pwDeviceIcon  = $pw->deviceTypeIcon();
+                  $pwBadgeStyle  = match ($pwDeviceType) {
+                      'Laptop' => 'bg-indigo-50 text-indigo-700 ring-indigo-600/20 dark:bg-indigo-950/50 dark:text-indigo-300 dark:ring-indigo-500/30',
+                      'Mobile' => 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/50 dark:text-amber-300 dark:ring-amber-500/30',
+                      'Tablet' => 'bg-purple-50 text-purple-700 ring-purple-600/20 dark:bg-purple-950/50 dark:text-purple-300 dark:ring-purple-500/30',
+                      default  => 'bg-sky-50 text-sky-700 ring-sky-600/20 dark:bg-sky-950/50 dark:text-sky-300 dark:ring-sky-500/30',
+                  };
+                @endphp
+                <div class="flex items-start gap-2.5">
+                  <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset {{ $pwBadgeStyle }}">
+                    <i class="ph-bold {{ $pwDeviceIcon }} text-sm"></i>
+                  </div>
+                  <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <span class="font-semibold text-slate-900 dark:text-white">{{ $pw->cleanWorkstationName() }}</span>
+                      <span class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset {{ $pwBadgeStyle }}">
+                        <i class="ph-bold {{ $pwDeviceIcon }} text-[10px]"></i>
+                        {{ $pwDeviceLabel }}
+                      </span>
+                    </div>
+                    <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">{{ $pw->platform ?? 'Unknown OS' }}</div>
+                  </div>
+                </div>
               </td>
               <td class="py-3 px-4">
                 <span class="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
@@ -231,7 +255,7 @@
                 <code class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-700 dark:bg-slate-800 dark:text-slate-300">{{ $pw->ip_address }}</code>
               </td>
               <td class="py-3 px-4">
-                @php $appCount = $pw->user?->approvedWorkstations()->count() ?? 0; @endphp
+                @php $appCount = (int) ($pw->user?->approved_workstations_count ?? $pw->user?->approvedWorkstations()->count() ?? 0); @endphp
                 <span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold {{ $appCount >= 3 ? 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-700/10 dark:bg-rose-950/60 dark:text-rose-400 dark:ring-rose-500/20' : 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10 dark:bg-blue-950/60 dark:text-blue-400 dark:ring-blue-500/20' }}">
                   {{ $appCount }} / 3 bound
                 </span>
@@ -332,8 +356,32 @@
                 <div class="text-[11px] text-slate-500 dark:text-slate-400">{{ $bw->user?->roleLabel() }}</div>
               </td>
               <td class="py-3 px-4">
-                <div class="font-medium text-slate-900 dark:text-white">{{ $bw->workstation_name }}</div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">{{ $bw->platform }} &bull; {{ $bw->browser }}</div>
+                @php
+                  $bwDeviceType  = $bw->resolvedDeviceType();
+                  $bwDeviceLabel = $bw->deviceTypeLabel();
+                  $bwDeviceIcon  = $bw->deviceTypeIcon();
+                  $bwBadgeStyle  = match ($bwDeviceType) {
+                      'Laptop' => 'bg-indigo-50 text-indigo-700 ring-indigo-600/20 dark:bg-indigo-950/50 dark:text-indigo-300 dark:ring-indigo-500/30',
+                      'Mobile' => 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/50 dark:text-amber-300 dark:ring-amber-500/30',
+                      'Tablet' => 'bg-purple-50 text-purple-700 ring-purple-600/20 dark:bg-purple-950/50 dark:text-purple-300 dark:ring-purple-500/30',
+                      default  => 'bg-sky-50 text-sky-700 ring-sky-600/20 dark:bg-sky-950/50 dark:text-sky-300 dark:ring-sky-500/30',
+                  };
+                @endphp
+                <div class="flex items-start gap-2.5">
+                  <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset {{ $bwBadgeStyle }}">
+                    <i class="ph-bold {{ $bwDeviceIcon }} text-sm"></i>
+                  </div>
+                  <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <span class="font-semibold text-slate-900 dark:text-white">{{ $bw->cleanWorkstationName() }}</span>
+                      <span class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset {{ $bwBadgeStyle }}">
+                        <i class="ph-bold {{ $bwDeviceIcon }} text-[10px]"></i>
+                        {{ $bwDeviceLabel }}
+                      </span>
+                    </div>
+                    <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">{{ $bw->platform }} &bull; {{ $bw->browser }}</div>
+                  </div>
+                </div>
               </td>
               <td class="py-3 px-4">
                 <code class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-700 dark:bg-slate-800 dark:text-slate-300">{{ $bw->ip_address }}</code>
@@ -376,7 +424,7 @@
                         title: 'Revoke Workstation Authorization',
                         message: 'Revoke authorization for this workstation?',
                         detail: 'Any active sessions running on this computer will be terminated immediately, and users will be signed out.',
-                        targetName: '{{ addslashes($bw->workstation_name) }}',
+                        targetName: '{{ addslashes($bw->cleanWorkstationName()) }} ({{ $bw->deviceTypeLabel() }})',
                         targetIp: '{{ $bw->ip_address }}',
                         confirmText: 'Revoke Authorization',
                         confirmVariant: 'warning',
@@ -406,7 +454,7 @@
                       title: 'Permanently Remove Workstation',
                       message: 'Permanently remove this workstation record from the system?',
                       detail: 'This action is irreversible. The cryptographic device fingerprint and authorization record will be purged from the hospital registry.',
-                      targetName: '{{ addslashes($bw->workstation_name) }}',
+                      targetName: '{{ addslashes($bw->cleanWorkstationName()) }} ({{ $bw->deviceTypeLabel() }})',
                       targetIp: '{{ $bw->ip_address }}',
                       confirmText: 'Permanently Remove',
                       confirmVariant: 'danger',
@@ -486,8 +534,33 @@
                 <div class="text-[11px] text-slate-500 dark:text-slate-400">{{ $as->user?->roleLabel() }}</div>
               </td>
               <td class="py-3 px-4">
-                <div class="font-medium text-slate-900 dark:text-white">{{ $as->device_name }}</div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">{{ $as->workstation?->platform ?? 'Terminal' }}</div>
+                @php
+                  $asDeviceType  = $as->workstation?->resolvedDeviceType() ?? 'Desktop';
+                  $asDeviceLabel = $as->workstation?->deviceTypeLabel() ?? 'Desktop';
+                  $asDeviceIcon  = $as->workstation?->deviceTypeIcon() ?? 'ph-desktop';
+                  $asCleanName   = $as->workstation?->cleanWorkstationName() ?: preg_replace('/\s*-\s*(?:\d{1,3}(?:\.\d{1,3}){3}|[0-9a-fA-F:]{2,})\s*$/', '', (string) $as->device_name);
+                  $asBadgeStyle  = match ($asDeviceType) {
+                      'Laptop' => 'bg-indigo-50 text-indigo-700 ring-indigo-600/20 dark:bg-indigo-950/50 dark:text-indigo-300 dark:ring-indigo-500/30',
+                      'Mobile' => 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/50 dark:text-amber-300 dark:ring-amber-500/30',
+                      'Tablet' => 'bg-purple-50 text-purple-700 ring-purple-600/20 dark:bg-purple-950/50 dark:text-purple-300 dark:ring-purple-500/30',
+                      default  => 'bg-sky-50 text-sky-700 ring-sky-600/20 dark:bg-sky-950/50 dark:text-sky-300 dark:ring-sky-500/30',
+                  };
+                @endphp
+                <div class="flex items-start gap-2.5">
+                  <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset {{ $asBadgeStyle }}">
+                    <i class="ph-bold {{ $asDeviceIcon }} text-sm"></i>
+                  </div>
+                  <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <span class="font-semibold text-slate-900 dark:text-white">{{ $asCleanName }}</span>
+                      <span class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset {{ $asBadgeStyle }}">
+                        <i class="ph-bold {{ $asDeviceIcon }} text-[10px]"></i>
+                        {{ $asDeviceLabel }}
+                      </span>
+                    </div>
+                    <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">{{ $as->workstation?->platform ?? 'Terminal' }}</div>
+                  </div>
+                </div>
               </td>
               <td class="py-3 px-4">
                 <code class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-700 dark:bg-slate-800 dark:text-slate-300">{{ $as->ip_address }}</code>
@@ -511,7 +584,7 @@
                     title: 'Terminate Active Session',
                     message: 'Forcibly disconnect this session immediately?',
                     detail: 'The active user session will be terminated and the user will be logged out from their terminal.',
-                    targetName: '{{ addslashes($as->user?->name ?? 'User') }} ({{ addslashes($as->workstation?->workstation_name ?? 'Device') }})',
+                    targetName: '{{ addslashes($as->user?->name ?? 'User') }} ({{ addslashes((string) $asCleanName) }} - {{ $asDeviceLabel }})',
                     targetIp: '{{ $as->ip_address }}',
                     confirmText: 'Disconnect Session',
                     confirmVariant: 'danger',

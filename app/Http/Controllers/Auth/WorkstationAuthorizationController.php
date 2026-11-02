@@ -66,6 +66,8 @@ final class WorkstationAuthorizationController extends Controller
             'user'        => $user,
             'workstation' => $workstation,
             'deviceUuid'  => $deviceUuid,
+            'deviceType'  => $workstation->deviceTypeLabel(),
+            'deviceIcon'  => $workstation->deviceTypeIcon(),
             'platform'    => $this->workstationService->detectPlatform($request->userAgent()),
             'browser'     => $this->workstationService->detectBrowser($request->userAgent()),
             'ip'          => $request->ip(),

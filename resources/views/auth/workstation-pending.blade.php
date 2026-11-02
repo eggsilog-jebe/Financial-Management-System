@@ -143,7 +143,7 @@
             <div class="radar-ring"></div>
             <div class="radar-ring radar-ring-2"></div>
             <div class="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500 text-white shadow-md shadow-amber-500/20 text-xl">
-              <i class="ph-bold ph-desktop"></i>
+              <i class="ph-bold {{ $deviceIcon ?? 'ph-desktop' }}"></i>
             </div>
           </div>
 
@@ -176,7 +176,16 @@
           </div>
           <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800/80">
             <span class="text-slate-400 flex items-center gap-1.5">
-              <i class="ph-bold ph-laptop"></i> Operating System
+              <i class="ph-bold {{ $deviceIcon ?? 'ph-desktop' }}"></i> Device Type
+            </span>
+            <span class="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-950/60 dark:text-emerald-300">
+              <i class="ph-bold {{ $deviceIcon ?? 'ph-desktop' }} text-xs"></i>
+              {{ $deviceType ?? 'Desktop' }}
+            </span>
+          </div>
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800/80">
+            <span class="text-slate-400 flex items-center gap-1.5">
+              <i class="ph-bold ph-cpu"></i> Operating System
             </span>
             <span class="font-medium text-slate-700 dark:text-slate-300">{{ $platform }}</span>
           </div>

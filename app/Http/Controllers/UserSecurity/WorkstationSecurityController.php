@@ -43,10 +43,15 @@ final class WorkstationSecurityController extends Controller
         $activeSessions      = $this->sessionManager->getActiveSessions();
         $users               = User::where('status', 'active')->orderBy('name')->get();
 
+        $statusCounts = UserWorkstation::query()
+            ->selectRaw('status, count(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+
         $metrics = [
             'pending_count'    => $pendingWorkstations->count(),
-            'approved_count'   => UserWorkstation::where('status', UserWorkstation::STATUS_APPROVED)->count(),
-            'revoked_count'    => UserWorkstation::where('status', UserWorkstation::STATUS_REVOKED)->count(),
+            'approved_count'   => (int) ($statusCounts[UserWorkstation::STATUS_APPROVED] ?? 0),
+            'revoked_count'    => (int) ($statusCounts[UserWorkstation::STATUS_REVOKED] ?? 0),
             'active_sessions'  => $activeSessions->count(),
             'max_per_user'     => UserWorkstation::MAX_PER_USER,
         ];
@@ -72,26 +77,31 @@ final class WorkstationSecurityController extends Controller
             'pending_count' => $pending->count(),
             'active_count'  => $active->count(),
             'pending'       => $pending->map(fn (UserWorkstation $w) => [
-                'id'               => $w->id,
-                'user_name'        => $w->user?->name ?? 'Unknown',
-                'user_email'       => $w->user?->email ?? '',
-                'user_role'        => $w->user?->roleLabel() ?? '',
-                'workstation_name' => $w->workstation_name,
-                'platform'         => $w->platform,
-                'browser'          => $w->browser,
-                'ip_address'       => $w->ip_address,
-                'requested_at'     => $w->updated_at->diffForHumans(),
-                'approved_count'   => $w->user?->approvedWorkstations()->count() ?? 0,
+                'id'                => $w->id,
+                'user_name'         => $w->user?->name ?? 'Unknown',
+                'user_email'        => $w->user?->email ?? '',
+                'user_role'         => $w->user?->roleLabel() ?? '',
+                'workstation_name'  => $w->cleanWorkstationName(),
+                'device_type'       => $w->resolvedDeviceType(),
+                'device_type_label' => $w->deviceTypeLabel(),
+                'device_type_icon'  => $w->deviceTypeIcon(),
+                'platform'          => $w->platform,
+                'browser'           => $w->browser,
+                'ip_address'        => $w->ip_address,
+                'requested_at'      => $w->updated_at->diffForHumans(),
+                'approved_count'    => (int) ($w->user?->approved_workstations_count ?? $w->user?->approvedWorkstations()->count() ?? 0),
             ]),
             'active_sessions' => $active->map(fn (UserActiveSession $s) => [
-                'id'               => $s->id,
-                'session_id'       => substr($s->session_id, 0, 16) . '...',
-                'user_name'        => $s->user?->name ?? 'Unknown',
-                'user_role'        => $s->user?->roleLabel() ?? '',
-                'device_name'      => $s->device_name,
-                'ip_address'       => $s->ip_address,
-                'login_at'         => $s->login_at->format('M d, H:i'),
-                'last_activity'    => $s->last_activity_at->diffForHumans(),
+                'id'                => $s->id,
+                'session_id'        => substr($s->session_id, 0, 16) . '...',
+                'user_name'         => $s->user?->name ?? 'Unknown',
+                'user_role'         => $s->user?->roleLabel() ?? '',
+                'device_name'       => $s->workstation?->cleanWorkstationName() ?: $s->device_name,
+                'device_type'       => $s->workstation?->resolvedDeviceType() ?? UserWorkstation::DEVICE_DESKTOP,
+                'device_type_label' => $s->workstation?->deviceTypeLabel() ?? 'Desktop',
+                'ip_address'        => $s->ip_address,
+                'login_at'          => $s->login_at->format('M d, H:i'),
+                'last_activity'     => $s->last_activity_at->diffForHumans(),
             ]),
         ]);
     }
@@ -103,16 +113,18 @@ final class WorkstationSecurityController extends Controller
     {
         $validated = $request->validate([
             'workstation_name' => ['nullable', 'string', 'max:100'],
+            'device_type'      => ['nullable', 'string', 'in:Desktop,Laptop,Mobile,Tablet'],
         ]);
 
         try {
             $this->workstationService->approveWorkstation(
                 workstation: $workstation,
                 admin:       Auth::user(),
-                customName:  $validated['workstation_name'] ?? null
+                customName:  $validated['workstation_name'] ?? null,
+                deviceType:  $validated['device_type'] ?? null
             );
 
-            $message = "✅ Workstation [{$workstation->workstation_name}] approved successfully for {$workstation->user?->name}.";
+            $message = "✅ Workstation [{$workstation->cleanWorkstationName()}] ({$workstation->deviceTypeLabel()}) approved successfully for {$workstation->user?->name}.";
 
             if ($request->wantsJson()) {
                 return response()->json(['success' => true, 'message' => $message]);

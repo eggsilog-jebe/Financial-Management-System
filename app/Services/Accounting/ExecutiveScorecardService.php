@@ -118,15 +118,19 @@ final class ExecutiveScorecardService
         // ──────────────────────────────────────────────────────────────────────────
 
         // 3. Quick Liquidity Ratio (Cash to AP Coverage): Target >= 1.00x
-        $hasAp = bccomp($outstandingApStr, '0.0000', 4) > 0;
+        $hasAp      = bccomp($outstandingApStr, '0.0000', 4) > 0;
+        $isCashNeg  = bccomp($totalCashStr, '0.0000', 4) < 0;
         if ($hasAp) {
             $liquidityRatio = round((float) bcdiv($totalCashStr, $outstandingApStr, 4), 2);
+        } elseif ($isCashNeg) {
+            $liquidityRatio = -1.0;
         } else {
             $liquidityRatio = bccomp($totalCashStr, '0.0000', 4) > 0 ? 99.9 : 1.0;
         }
 
         $liquidityStatus = match (true) {
-            ! $hasAp && bccomp($totalCashStr, '0.0000', 4) > 0 => 'OPTIMAL',
+            $isCashNeg                                          => 'CRITICAL',
+            ! $hasAp && bccomp($totalCashStr, '0.0000', 4) >= 0 => 'OPTIMAL',
             $liquidityRatio >= 1.50                             => 'OPTIMAL',
             $liquidityRatio >= 1.00                             => 'OPTIMAL',
             $liquidityRatio >= 0.70                             => 'WARNING',
@@ -137,13 +141,13 @@ final class ExecutiveScorecardService
             perspective: 'Treasury & Liquidity',
             metric: 'Quick Cash-to-AP Coverage',
             target: '≥ 1.00x',
-            actual: ($hasAp ? $liquidityRatio . 'x' : 'Abundant (No AP)'),
-            variance: $hasAp ? (($liquidityRatio >= 1.00 ? '+' : '') . round($liquidityRatio - 1.00, 2) . 'x') : '0.00x',
+            actual: $isCashNeg ? 'Overdrawn' : ($hasAp ? $liquidityRatio . 'x' : 'Abundant (No AP)'),
+            variance: $isCashNeg ? '-₱' . number_format(abs((float) $totalCashStr), 2) : ($hasAp ? (($liquidityRatio >= 1.00 ? '+' : '') . round($liquidityRatio - 1.00, 2) . 'x') : '0.00x'),
             status: $liquidityStatus,
             statusLabel: match ($liquidityStatus) {
                 'OPTIMAL'  => $liquidityRatio >= 1.50 ? 'Strong Liquidity (≥ 1.5x)' : 'Sufficient (≥ 1.0x)',
                 'WARNING'  => 'Tight Buffer (< 1.0x)',
-                'CRITICAL' => 'Deficit Exposure (< 0.7x)',
+                'CRITICAL' => $isCashNeg ? 'Cash Overdraft' : 'Deficit Exposure (< 0.7x)',
                 default    => 'No Activity',
             },
             badgeColor: match ($liquidityStatus) {
@@ -153,7 +157,7 @@ final class ExecutiveScorecardService
                 default    => 'slate',
             },
             icon: 'ph-vault',
-            progressPct: max(0.0, min(100.0, $liquidityRatio * 50.0)),
+            progressPct: $isCashNeg ? 0.0 : max(0.0, min(100.0, $liquidityRatio * 50.0)),
             description: 'Vault cash and AGDB depository balances available to settle immediate vendor obligations.',
         );
 

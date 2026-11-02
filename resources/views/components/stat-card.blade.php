@@ -57,37 +57,47 @@
 
     $palette = $colorMap[$color] ?? $colorMap['emerald'];
     $iconName = str_starts_with($icon, 'ph-') ? $icon : 'ph-' . $icon;
+    $isNegativeNumber = is_numeric($value) && (float) $value < 0;
 @endphp
 
-<div {{ $attributes->merge(['class' => 'relative overflow-hidden rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200/80 transition-all hover:shadow-md dark:bg-slate-900 dark:ring-slate-800']) }}>
-    <div class="flex items-center justify-between">
+<div {{ $attributes->merge(['class' => 'relative flex flex-col justify-between overflow-hidden rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200/80 transition-all hover:shadow-md dark:bg-slate-900 dark:ring-slate-800']) }}>
+    <div class="flex items-center justify-between gap-2">
         <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{{ $title }}</span>
-        <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl {{ $palette['bg'] }} {{ $palette['text'] }} ring-1 {{ $palette['ring'] }}">
+        <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl {{ $palette['bg'] }} {{ $palette['text'] }} ring-1 {{ $palette['ring'] }}">
             <i class="ph-bold {{ $iconName }} text-lg"></i>
         </span>
     </div>
-    <div class="mt-4 flex items-baseline justify-between gap-2">
-        <div class="kpi-value font-sans text-2xl font-bold tracking-tight text-slate-900 dark:text-white tabular-nums">
+
+    <div class="mt-3">
+        <div class="kpi-value font-sans text-2xl font-bold tracking-tight {{ $isNegativeNumber ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white' }} tabular-nums">
             @if($isCurrency)
-                {{ $prefix }}{{ is_numeric($value) ? number_format((float) $value, 2) : $value }}
+                @if($isNegativeNumber)
+                    -{{ $prefix }}{{ number_format(abs((float) $value), 2) }}
+                @else
+                    {{ $prefix }}{{ is_numeric($value) ? number_format((float) $value, 2) : $value }}
+                @endif
             @else
                 {{ is_numeric($value) ? number_format((float) $value) : $value }}
             @endif
         </div>
-        <div class="flex flex-wrap items-center justify-end gap-1.5">
-            @if($badge !== null)
-                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $palette['bg'] }} {{ $palette['text'] }} ring-1 {{ $palette['ring'] }}">
-                    {{ $badge }}
-                </span>
-            @endif
-            @if($trend !== null)
-                <span class="inline-flex items-center gap-1 text-xs font-semibold {{ $trendUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
-                    <i class="ph-bold {{ $trendUp ? 'ph-trend-up' : 'ph-trend-down' }}"></i> {{ $trend }}
-                </span>
-            @endif
-        </div>
+
+        @if($badge !== null || $trend !== null)
+            <div class="mt-2.5 flex flex-wrap items-center gap-2">
+                @if($badge !== null)
+                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold {{ $palette['bg'] }} {{ $palette['text'] }} ring-1 {{ $palette['ring'] }}">
+                        {{ $badge }}
+                    </span>
+                @endif
+                @if($trend !== null)
+                    <span class="inline-flex items-center gap-1 text-xs font-semibold {{ $trendUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
+                        <i class="ph-bold {{ $trendUp ? 'ph-trend-up' : 'ph-trend-down' }}"></i> {{ $trend }}
+                    </span>
+                @endif
+            </div>
+        @endif
     </div>
+
     @if($subtitle)
-        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $subtitle }}</p>
+        <p class="mt-2 border-t border-slate-100 pt-2 text-[11px] text-slate-500 dark:border-slate-800/80 dark:text-slate-400">{{ $subtitle }}</p>
     @endif
 </div>

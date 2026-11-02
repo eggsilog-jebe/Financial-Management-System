@@ -462,5 +462,67 @@ final class WorkstationAndSessionSecurityTest extends TestCase
         $this->assertSame(8, $boundWorkstations->total());
         $this->assertTrue($boundWorkstations->hasPages());
     }
+
+    public function test_workstation_label_excludes_redundant_ip_and_detects_device_type(): void
+    {
+        $admin = User::factory()->create(['role' => 'CFO']);
+        $user  = User::factory()->create([
+            'email'    => 'nurse.laptop@hospital.gov.ph',
+            'role'     => 'BillingClerk',
+            'password' => Hash::make('HospitalSecure123!'),
+        ]);
+
+        $deviceUuid = 'ws-laptop-test-uuid-777';
+
+        $response = $this->withCookie(WorkstationBindingService::COOKIE_NAME, $deviceUuid)
+            ->withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+            ])
+            ->post('/login', [
+                'email'       => 'nurse.laptop@hospital.gov.ph',
+                'password'    => 'HospitalSecure123!',
+                'device_uuid' => $deviceUuid,
+                'device_type' => 'Laptop',
+            ]);
+
+        $response->assertRedirect(route('workstation.pending'));
+
+        $workstation = UserWorkstation::where('device_uuid', $deviceUuid)->firstOrFail();
+
+        // Label must be clean "Windows 10/11 (Google Chrome)" without "- 127.0.0.1"
+        $this->assertSame('Windows 10/11 (Google Chrome)', $workstation->workstation_name);
+        $this->assertStringNotContainsString((string) $workstation->ip_address, $workstation->workstation_name);
+        $this->assertSame(UserWorkstation::DEVICE_LAPTOP, $workstation->device_type);
+        $this->assertSame('Laptop', $workstation->deviceTypeLabel());
+        $this->assertSame('ph-laptop', $workstation->deviceTypeIcon());
+
+        // Legacy workstation_name with trailing IP is automatically stripped by cleanWorkstationName()
+        $legacyWorkstation = UserWorkstation::create([
+            'user_id'          => $user->id,
+            'device_uuid'      => 'ws-mobile-legacy-888',
+            'workstation_name' => 'Android Mobile (Google Chrome) - 209.35.167.177',
+            'platform'         => 'Android Mobile',
+            'browser'          => 'Google Chrome',
+            'ip_address'       => '209.35.167.177',
+            'status'           => UserWorkstation::STATUS_PENDING,
+        ]);
+
+        $this->assertSame('Android Mobile (Google Chrome)', $legacyWorkstation->cleanWorkstationName());
+        $this->assertSame('Phone', $legacyWorkstation->deviceTypeLabel());
+        $this->assertSame('ph-device-mobile', $legacyWorkstation->deviceTypeIcon());
+
+        // Super Admin view renders clean name and hardware type badges (Laptop & Phone)
+        $this->flushSession();
+        $adminView = $this->actingAs($admin)
+            ->withSession(['auth.2fa_passed' => true])
+            ->get(route('user-security.workstations'));
+
+        $adminView->assertOk();
+        $adminView->assertSee('Windows 10/11 (Google Chrome)');
+        $adminView->assertSee('Laptop');
+        $adminView->assertSee('Android Mobile (Google Chrome)');
+        $adminView->assertSee('Phone');
+        $adminView->assertDontSee('Android Mobile (Google Chrome) - 209.35.167.177');
+    }
 }
 

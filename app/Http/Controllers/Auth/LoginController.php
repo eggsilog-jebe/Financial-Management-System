@@ -156,6 +156,7 @@ final class LoginController extends Controller
 
                 $request->session()->put('auth.pending_workstation_id', $workstation->id);
                 $request->session()->put('auth.pending_device_uuid', $deviceUuid);
+                $request->session()->put('auth.pending_device_type', $workstation->resolvedDeviceType());
 
                 return redirect()->route('workstation.pending')
                     ->withCookie($deviceCookie)

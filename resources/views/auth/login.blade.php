@@ -354,6 +354,7 @@
         <form id="login-form" method="POST" action="{{ route('login.post') }}" novalidate class="mt-6 space-y-4" @submit="try { sessionStorage.setItem('idle_modal_dismissed', '1'); } catch (e) {}">
           @csrf
           <input type="hidden" name="device_uuid" id="login-device-uuid">
+          <input type="hidden" name="device_type" id="login-device-type" value="Desktop">
 
           <!-- Email Field -->
           <div>
@@ -583,7 +584,7 @@
         });
       }
 
-      // 4. Persistent Hardware Workstation UUID Binding
+      // 4. Persistent Hardware Workstation UUID & Hardware Form-Factor Detection (Desktop, Laptop, Mobile, Tablet)
       try {
         let deviceUuid = localStorage.getItem('fms_device_uuid');
         if (!deviceUuid) {
@@ -595,6 +596,47 @@
         const uuidInput = document.getElementById('login-device-uuid');
         if (uuidInput) uuidInput.value = deviceUuid;
         document.cookie = 'fms_workstation_token=' + deviceUuid + '; path=/; max-age=157680000; SameSite=Lax';
+
+        // Hardware Form-Factor Telemetry (distinguishes Laptop, Desktop, Phone, Tablet)
+        const typeInput = document.getElementById('login-device-type');
+        const setDetectedType = (type) => {
+          if (typeInput) typeInput.value = type;
+          try { localStorage.setItem('fms_device_type', type); } catch (_) {}
+        };
+
+        const ua = navigator.userAgent || '';
+        const isMobileUA = /Mobile|iPhone|iPod|Android.*Mobile|Windows Phone|BlackBerry|Opera Mini|IEMobile/i.test(ua);
+        const isTabletUA = /iPad|Tablet|PlayBook|Silk|(Android(?!.*Mobile))/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+        if (isMobileUA || (navigator.userAgentData && navigator.userAgentData.mobile)) {
+          setDetectedType('Mobile');
+        } else if (isTabletUA) {
+          setDetectedType('Tablet');
+        } else {
+          // Distinguish Laptop vs Desktop on Windows/macOS/Linux
+          const sw = window.screen ? window.screen.width : 1920;
+          const sh = window.screen ? window.screen.height : 1080;
+          const dpr = window.devicePixelRatio || 1;
+          const hasTouch = (navigator.maxTouchPoints || 0) > 0;
+          const isMac = /Macintosh|Mac OS X/i.test(ua);
+          // Common laptop panels (1366x768, 1536x864 @ 1.25x, 1280x800, 1440x900, 1707x1067, HiDPI fractional scale)
+          const looksLikeLaptopScreen = hasTouch || isMac || (dpr > 1 && dpr < 2 && sw <= 1720) || (sw <= 1600 && sh <= 1050);
+          setDetectedType(looksLikeLaptopScreen ? 'Laptop' : 'Desktop');
+
+          // Refine with Web Battery Status API if supported by Chromium/Edge/Chrome
+          if (typeof navigator.getBattery === 'function') {
+            navigator.getBattery().then((battery) => {
+              if (!battery) return;
+              // Desktops without batteries usually report charging=true, level=1, chargingTime=0, dischargingTime=Infinity
+              const hasBattery = !battery.charging || battery.level < 1 || (battery.chargingTime > 0 && battery.chargingTime !== Infinity) || (battery.dischargingTime > 0 && battery.dischargingTime !== Infinity);
+              if (hasBattery) {
+                setDetectedType('Laptop');
+              } else if (!looksLikeLaptopScreen) {
+                setDetectedType('Desktop');
+              }
+            }).catch(() => {});
+          }
+        }
       } catch (_) {}
 
       // 5. Prevent browser bfcache restoration if navigating back while authenticated

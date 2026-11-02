@@ -67,7 +67,7 @@ final class ActiveSessionManagerService
                 'user_id'            => $user->id,
                 'workstation_id'     => $workstation?->id,
                 'device_uuid'        => $workstation?->device_uuid,
-                'device_name'        => $workstation?->workstation_name ?: $request->userAgent(),
+                'device_name'        => $workstation?->cleanWorkstationName() ?: $request->userAgent(),
                 'ip_address'         => $request->ip(),
                 'user_agent'         => $request->userAgent(),
                 'login_at'           => now(),
